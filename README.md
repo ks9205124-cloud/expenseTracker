@@ -1,0 +1,1 @@
+A full-stack expense tracking app built primarily to learn React, with hand-rolled JWT authentication and a third-party currency conversion API integration.
