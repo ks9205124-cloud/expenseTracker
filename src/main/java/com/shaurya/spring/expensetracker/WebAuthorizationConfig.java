@@ -21,9 +21,13 @@ public class WebAuthorizationConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception { //interface to implement a contract to set a filter chain to allow varied lvl of authentication powers
         http.httpBasic(Customizer.withDefaults());      //Customizer must be passed in a securityFilterChain
-
+        http.csrf(csrf -> csrf
+                .ignoringRequestMatchers("/createUser")
+        );
         http.authenticationProvider(customAuthenticationProvider);  //set authProvider to a customAuthProvider
-        http.authorizeHttpRequests(C -> C.anyRequest().authenticated());  //allows every authority excepted by the customAuthenticationProvider to perform every task a proof of concept
+        http.authorizeHttpRequests(C -> C
+                .requestMatchers("/createUser").permitAll()
+                .anyRequest().authenticated());  //allows every authority excepted by the customAuthenticationProvider to perform every task a proof of concept
         return http.build();
     }
 }
