@@ -1,6 +1,8 @@
 package com.shaurya.spring.expensetracker;
 
+import com.shaurya.spring.expensetracker.security.AuthenticationLoggingFilter;
 import com.shaurya.spring.expensetracker.security.CustomAuthenticationProvider;
+import com.shaurya.spring.expensetracker.security.RequestLoggingFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,6 +10,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -25,6 +28,14 @@ public class WebAuthorizationConfig {
                 .ignoringRequestMatchers("/createUser")
         );
         http.authenticationProvider(customAuthenticationProvider);  //set authProvider to a customAuthProvider
+
+        http.addFilterBefore(
+                new RequestLoggingFilter(), BasicAuthenticationFilter.class     //add a proof of concept filter before custom Authentication
+        );
+        http.addFilterAfter(
+                new AuthenticationLoggingFilter(), BasicAuthenticationFilter.class      //add a proof of concept filter after custom Authentication
+        );
+
         http.authorizeHttpRequests(C -> C
                 .requestMatchers("/createUser").permitAll()
                 .anyRequest().authenticated());  //allows every authority excepted by the customAuthenticationProvider to perform every task a proof of concept
