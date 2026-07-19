@@ -15,13 +15,16 @@ public class CoustomAuthenticationSuccessHandler implements AuthenticationSucces
 
         var authorities = authentication.getAuthorities();
 
-        var auth = authorities.stream()
-                .filter(a -> a.getAuthority().equals("ROLE_USER"))
-                .findFirst();
+        boolean isAdmin = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isUser = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_USER"));
 
-        if (auth.isPresent()) {
+        if (isUser) {
             response.sendRedirect("/hello");
-        }else{
+        }
+        else if (isAdmin) {
+            response.sendRedirect("/admin");
+        }
+        else{
             response.sendRedirect("/error");    //what to do if user does not have the correct authority
         }
 

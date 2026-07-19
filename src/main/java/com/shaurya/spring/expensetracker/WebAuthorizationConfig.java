@@ -40,9 +40,12 @@ public class WebAuthorizationConfig {
                 new AuthenticationLoggingFilter(), BasicAuthenticationFilter.class      //add a proof of concept filter after custom Authentication
         );
 
-        http.authorizeHttpRequests(C -> C
-                .requestMatchers("/createUser").permitAll()
-                .anyRequest().authenticated());  //allows every authority excepted by the customAuthenticationProvider to perform every task a proof of concept
+        http.authorizeHttpRequests(c -> c
+                .requestMatchers("/createUser").permitAll()     //no role/authority required to access this page
+                .requestMatchers("/admin").hasRole("ADMIN")     //allow only admin to access admin page
+                .requestMatchers("/user").hasAnyRole("USER","ADMIN")   //allow both user and admin to access user page
+                .anyRequest().authenticated()
+        );
         return http.build();
     }
 }
