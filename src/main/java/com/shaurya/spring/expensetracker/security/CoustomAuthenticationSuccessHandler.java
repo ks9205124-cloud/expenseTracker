@@ -19,7 +19,7 @@ public class CoustomAuthenticationSuccessHandler implements AuthenticationSucces
         boolean isUser = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_USER"));
 
         if (isUser) {
-            response.sendRedirect("/hello");
+            response.sendRedirect("/user");
         }
         else if (isAdmin) {
             response.sendRedirect("/admin");
