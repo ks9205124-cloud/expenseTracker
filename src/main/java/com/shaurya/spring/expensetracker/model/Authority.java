@@ -2,6 +2,7 @@ package com.shaurya.spring.expensetracker.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 @Entity
 @Data
@@ -16,5 +17,6 @@ public class Authority {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
+    @ToString.Exclude
     private User user;
 }
