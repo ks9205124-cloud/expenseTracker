@@ -47,12 +47,12 @@ public class ExpenseService {
         return expenseRepository.save(expense);
     }
 
-    @PostAuthorize("hasRole('ADMIN') or hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public List<Expense> getExpensesForCurrentUser() {
         return expenseRepository.findByUser(userService.getCurrentUser());
     }
 
-    @PostAuthorize("hasRole('ADMIN') or hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public Expense getExpenseById(Long expenseId) {
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new RuntimeException("Expense not found"));

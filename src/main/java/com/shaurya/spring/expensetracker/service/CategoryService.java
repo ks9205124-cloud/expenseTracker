@@ -32,13 +32,13 @@ public class CategoryService {
         return categoryRepository.save(category);
     }
 
-    @PostAuthorize("hasRole('ADMIN') or hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
      public List<Category> getCategoriesForCurrentUser() {
         return categoryRepository.findByUser(userService.getCurrentUser());
      }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
-    public void deleteCategory(Long categoryId) {
+    public void deleteCategory(Long categoryId)  {
 
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
