@@ -25,9 +25,9 @@ public class CategoryController {
         return  categoryService.getCategoriesForCurrentUser();
     }
 
-    @DeleteMapping("/{id}")
-    public void deleteCategoriesForCurrentUser(@PathVariable Long id) {
-        categoryService.deleteCategory(id);
+    @DeleteMapping("/{expenseId}")
+    public void deleteCategoriesForCurrentUser(@PathVariable Long expenseId) {
+        categoryService.deleteCategory(expenseId);
     }
 
     @PostMapping
