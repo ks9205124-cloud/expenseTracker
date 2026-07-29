@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
@@ -124,7 +125,11 @@ public class WebAuthorizationConfig {
     }
 
     @Bean
-    public RegisteredClientRepository registeredClientRepository(JdbcTemplate jdbcTemplate) {
+    public RegisteredClientRepository registeredClientRepository(
+            JdbcTemplate jdbcTemplate,
+            PasswordEncoder passwordEncoder,
+            @org.springframework.beans.factory.annotation.Value("${oauth2.client.secret:my-local-secret}") String rawClientSecret
+    ) {
         JdbcRegisteredClientRepository repository = new JdbcRegisteredClientRepository(jdbcTemplate);
 
         // Initializer check: Save default client into MySQL if it isn't present yet
@@ -132,7 +137,8 @@ public class WebAuthorizationConfig {
             RegisteredClient registeredClient = RegisteredClient
                     .withId(UUID.randomUUID().toString())
                     .clientId("client")
-                    .clientSecret("{noop}secret")
+                    // Uses the injected secret from the method parameter
+                    .clientSecret(passwordEncoder.encode(rawClientSecret))
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                     .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
@@ -145,7 +151,6 @@ public class WebAuthorizationConfig {
                     .clientSettings(ClientSettings.builder()
                             .requireProofKey(true)
                             .build())
-                    .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                     .build();
 
             repository.save(registeredClient);
@@ -153,5 +158,4 @@ public class WebAuthorizationConfig {
 
         return repository;
     }
-
 }
