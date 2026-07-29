@@ -140,11 +140,12 @@ public class WebAuthorizationConfig {
                     .redirectUri("https://oauth.pstmn.io/v1/callback")
                     .scope(OidcScopes.OPENID)
                     .tokenSettings(TokenSettings.builder()
-                            .authorizationCodeTimeToLive(Duration.ofMinutes(30))
+                            .authorizationCodeTimeToLive(Duration.ofMinutes(3))
                             .build())
                     .clientSettings(ClientSettings.builder()
                             .requireProofKey(true)
                             .build())
+                    .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                     .build();
 
             repository.save(registeredClient);
