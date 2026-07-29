@@ -15,7 +15,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
-import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
@@ -23,8 +22,6 @@ import org.springframework.security.oauth2.server.authorization.config.annotatio
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -41,13 +38,15 @@ import java.util.UUID;
 public class WebAuthorizationConfig {
 
     private final CustomAuthenticationProvider customAuthenticationProvider;
-    private final CoustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+    private final SecurityBeansConfig securityBeansConfig;
+
 
     @Autowired
     public WebAuthorizationConfig(CustomAuthenticationProvider customAuthenticationProvider,
-                                  CoustomAuthenticationSuccessHandler customAuthenticationSuccessHandler) {
+                                  SecurityBeansConfig securityBeansConfig, SecurityBeansConfig securityBeansConfig1
+    ) {
         this.customAuthenticationProvider = customAuthenticationProvider;
-        this.customAuthenticationSuccessHandler = customAuthenticationSuccessHandler;
+        this.securityBeansConfig = securityBeansConfig1;
     }
 
     @Bean
@@ -93,7 +92,7 @@ public class WebAuthorizationConfig {
 
         // Add this line so Spring validates incoming Bearer JWT tokens on /api/** endpoints
         http.oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(securityBeansConfig.jwtAuthenticationConverter()))
         );
 
         http.csrf(csrf -> csrf
@@ -153,15 +152,5 @@ public class WebAuthorizationConfig {
 
         return repository;
     }
-    private JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        // Tells Spring to read authorities from the "authorities" claim instead of "scope"
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("authorities");
-        // Leaves authority names as-is (e.g., ROLE_USER, ROLE_ADMIN)
-        grantedAuthoritiesConverter.setAuthorityPrefix("");
 
-        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-        return jwtAuthenticationConverter;
-    }
 }
