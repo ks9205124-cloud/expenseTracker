@@ -41,19 +41,17 @@ public class WebAuthorizationConfig {
     private final CustomAuthenticationProvider customAuthenticationProvider;
     private final SecurityBeansConfig securityBeansConfig;
 
-
     @Autowired
     public WebAuthorizationConfig(CustomAuthenticationProvider customAuthenticationProvider,
-                                  SecurityBeansConfig securityBeansConfig, SecurityBeansConfig securityBeansConfig1
-    ) {
+                                  SecurityBeansConfig securityBeansConfig) {
         this.customAuthenticationProvider = customAuthenticationProvider;
-        this.securityBeansConfig = securityBeansConfig1;
+        this.securityBeansConfig = securityBeansConfig;
     }
 
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
@@ -74,11 +72,15 @@ public class WebAuthorizationConfig {
 
         http.exceptionHandling((e) ->
                 e.authenticationEntryPoint(
-                        new LoginUrlAuthenticationEntryPoint("/login")
+                        new LoginUrlAuthenticationEntryPoint("http://localhost:5173/login")
                 ));
 
-        // ENABLE form login in Order 1 so it handles human user login redirects cleanly
-        http.formLogin(Customizer.withDefaults());
+        http.formLogin(form -> form
+                .loginPage("http://localhost:5173/login")
+                .loginProcessingUrl("/login")
+        );
+
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()));  // ADD THIS
 
         return http.build();
     }
@@ -88,7 +90,10 @@ public class WebAuthorizationConfig {
     @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        http.formLogin(Customizer.withDefaults());
+        http.formLogin(form -> form
+                .loginPage("http://localhost:5173/login")
+                .loginProcessingUrl("/login")
+        );
         http.httpBasic(Customizer.withDefaults());
 
         // Add this line so Spring validates incoming Bearer JWT tokens on /api/** endpoints
@@ -99,6 +104,7 @@ public class WebAuthorizationConfig {
         http.csrf(csrf -> csrf
                 .ignoringRequestMatchers("/api/**")
                 .ignoringRequestMatchers("/createUser")
+                .ignoringRequestMatchers("/login")
         );
 
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
@@ -115,6 +121,7 @@ public class WebAuthorizationConfig {
         http.authorizeHttpRequests(c -> c
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/createUser").permitAll()
+                .requestMatchers("/login").permitAll()   // ADD THIS
                 .requestMatchers("/admin").hasRole("ADMIN")
                 .requestMatchers("/user").hasAnyRole("USER","ADMIN")
                 .requestMatchers("/api/**").hasAnyRole("USER","ADMIN")
@@ -143,7 +150,7 @@ public class WebAuthorizationConfig {
                     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                     .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                     .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                    .redirectUri("https://oauth.pstmn.io/v1/callback")
+                    .redirectUri("http://localhost:5173/callback")
                     .scope(OidcScopes.OPENID)
                     .tokenSettings(TokenSettings.builder()
                             .authorizationCodeTimeToLive(Duration.ofMinutes(3))

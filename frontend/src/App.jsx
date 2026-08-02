@@ -1,16 +1,18 @@
-import { useState } from 'react'
-import loginBg from './assets/login-bg.jpg'
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import LoginPage from './pages/LoginPage';
+import CallbackPage from './pages/CallbackPage';
+import DashboardPage from './pages/DashboardPage';
 
 function App() {
     return (
-        <>
-            <div
-                className="min-h-screen bg-cover bg-center"
-                style={{ backgroundImage: `url(${loginBg})` }}
-            >
-            </div>
-        </>
-    )
+        <BrowserRouter>
+            <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/callback" element={<CallbackPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+            </Routes>
+        </BrowserRouter>
+    );
 }
 
-export default App
+export default App;
