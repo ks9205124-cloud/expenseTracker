@@ -12,21 +12,35 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/oauth2': { // ADD THIS for PKCE authorization endpoints
+      '/oauth2': { // PKCE authorization endpoints
         target: 'http://localhost:8080',
         changeOrigin: true,
+        xfwd: true, // send X-Forwarded-Host so Spring's redirect Location uses 5173, not 8080
       },
       '/login': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-      },
-      '/logout': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
+        xfwd: true,
+        bypass: (req) => {
+          if (req.method === 'GET') {
+            return '/index.html'; // let Vite/React Router serve LoginPage
+          }
+        }
       },
       '/register': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        xfwd: true,
+        bypass: (req) => {
+          if (req.method === 'GET') {
+            return '/index.html'; // let Vite/React Router serve RegisterPage
+          }
+        }
+      },
+      '/logout': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        xfwd: true,
       }
     }
   }
