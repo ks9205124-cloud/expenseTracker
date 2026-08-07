@@ -26,6 +26,7 @@ import org.springframework.security.oauth2.server.authorization.settings.TokenSe
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.CorsUtils;
@@ -95,6 +96,16 @@ public class WebAuthorizationConfig {
                 .loginPage("http://localhost:5173/login")
                 .loginProcessingUrl("/login")
         );
+
+        // --- BACKEND LOGOUT CONFIGURATION ---
+        http.logout(logout -> logout
+                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+                .invalidateHttpSession(true)
+                .clearAuthentication(true)
+                .deleteCookies("JSESSIONID")
+                .logoutSuccessUrl("http://localhost:5173/login")
+        );
+
         http.httpBasic(Customizer.withDefaults());
 
         // Add this line so Spring validates incoming Bearer JWT tokens on /api/** endpoints
@@ -106,6 +117,7 @@ public class WebAuthorizationConfig {
                 .ignoringRequestMatchers("/api/**")
                 .ignoringRequestMatchers("/register")
                 .ignoringRequestMatchers("/login")
+                .ignoringRequestMatchers("/logout")
         );
 
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
@@ -124,6 +136,7 @@ public class WebAuthorizationConfig {
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/register").permitAll()
                 .requestMatchers("/login").permitAll()   // ADD THIS
+                .requestMatchers("/logout").permitAll()
                 .requestMatchers("/admin").hasRole("ADMIN")
                 .requestMatchers("/user").hasAnyRole("USER","ADMIN")
                 .requestMatchers("/api/**").hasAnyRole("USER","ADMIN")
