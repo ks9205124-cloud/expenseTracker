@@ -17,7 +17,8 @@ function CallbackPage() {
             }
 
             try {
-                const response = await fetch('http://localhost:8080/oauth2/token', {
+                // Dynamically targets whichever domain the app is running on (localhost or Render)
+                const response = await fetch(`${window.location.origin}/oauth2/token`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -26,7 +27,7 @@ function CallbackPage() {
                     body: new URLSearchParams({
                         grant_type: 'authorization_code',
                         code: code,
-                        redirect_uri: 'http://localhost:5173/callback',
+                        redirect_uri: `${window.location.origin}/callback`,
                         code_verifier: verifier,
                         client_id: 'client'
                     })
