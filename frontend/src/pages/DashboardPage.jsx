@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
@@ -20,6 +20,10 @@ function DashboardPage() {
     const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
     const [expenseCategoryId, setExpenseCategoryId] = useState('');
 
+    // --- DIRECT SUBMISSION LOCKS (Prevents double clicks instantly) ---
+    const isSavingExpenseRef = useRef(false);
+    const isSavingCategoryRef = useRef(false);
+
     const token = sessionStorage.getItem('access_token');
 
     // -------------------------------------------------------------
@@ -40,8 +44,6 @@ function DashboardPage() {
 
     const username = getUsernameFromToken();
 
-    // NOTE: api.js already sets Content-Type: application/json via axios defaults for JSON bodies.
-    // Only the Authorization header needs to be passed per-request here.
     const authHeaders = {
         'Authorization': `Bearer ${token}`
     };
@@ -69,30 +71,27 @@ function DashboardPage() {
         }
     };
 
-    const handleAddCategory = async (e) => {
-        e.preventDefault();
+    const handleAddCategory = async () => {
+        if (isSavingCategoryRef.current) return; // Immediate lock check
         if (!newCategoryName.trim()) return;
 
+        isSavingCategoryRef.current = true;
         try {
             await api.post("/api/categories", { categoryName: newCategoryName }, { headers: authHeaders });
             setNewCategoryName('');
             setIsAddingCategory(false);
             fetchCategories();
-        } catch (err) {
-            console.error("Error creating category:", err);
+        } finally {
+            isSavingCategoryRef.current = false;
         }
     };
 
     const handleDeleteCategory = async (id, e) => {
         e.stopPropagation();
-        try {
-            await api.delete(`/api/categories/${id}`, { headers: authHeaders });
-            fetchCategories();
-            fetchExpenses();
-            if (selectedCategoryId === id) setSelectedCategoryId(null);
-        } catch (err) {
-            console.error("Error deleting category:", err);
-        }
+        await api.delete(`/api/categories/${id}`, { headers: authHeaders });
+        fetchCategories();
+        fetchExpenses();
+        if (selectedCategoryId === id) setSelectedCategoryId(null);
     };
 
     // -------------------------------------------------------------
@@ -109,10 +108,11 @@ function DashboardPage() {
         }
     };
 
-    const handleAddExpense = async (e) => {
-        e.preventDefault();
+    const handleAddExpense = async () => {
+        if (isSavingExpenseRef.current) return; // Immediate lock check
         if (!expenseAmount || !expenseDate || !expenseCategoryId) return;
 
+        isSavingExpenseRef.current = true;
         try {
             await api.post("/api/expenses", {
                 amount: parseFloat(expenseAmount),
@@ -124,18 +124,14 @@ function DashboardPage() {
             setExpenseCategoryId('');
             setIsAddingExpense(false);
             fetchExpenses();
-        } catch (err) {
-            console.error("Error adding expense:", err);
+        } finally {
+            isSavingExpenseRef.current = false;
         }
     };
 
     const handleDeleteExpense = async (id) => {
-        try {
-            await api.delete(`/api/expenses/${id}`, { headers: authHeaders });
-            fetchExpenses();
-        } catch (err) {
-            console.error("Error deleting expense:", err);
-        }
+        await api.delete(`/api/expenses/${id}`, { headers: authHeaders });
+        fetchExpenses();
     };
 
     useEffect(() => {
@@ -181,7 +177,7 @@ function DashboardPage() {
                     {selectedCategoryId && (
                         <button
                             onClick={() => setSelectedCategoryId(null)}
-                            className="text-xs text-teal-700 hover:underline font-medium"
+                            className="text-xs text-teal-700 hover:underline font-medium cursor-pointer"
                         >
                             Clear Filter
                         </button>
@@ -212,7 +208,7 @@ function DashboardPage() {
                                     <button
                                         type="button"
                                         onClick={(e) => handleDeleteCategory(categoryId, e)}
-                                        className={`ml-1 text-xs rounded-full p-1 hover:bg-red-500 hover:text-white transition-colors ${
+                                        className={`ml-1 text-xs rounded-full p-1 hover:bg-red-500 hover:text-white transition-colors border-0 bg-transparent cursor-pointer ${
                                             isSelected ? 'text-slate-200' : 'text-slate-500'
                                         }`}
                                         title="Delete category"
@@ -225,34 +221,35 @@ function DashboardPage() {
                     )}
 
                     {isAddingCategory ? (
-                        <form onSubmit={handleAddCategory} className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <input
                                 type="text"
                                 autoFocus
                                 placeholder="Category name..."
                                 value={newCategoryName}
                                 onChange={(e) => setNewCategoryName(e.target.value)}
-                                className="px-3 py-1.5 text-sm border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-700"
+                                className="px-3 py-1.5 text-sm border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-700 bg-white"
                             />
                             <button
-                                type="submit"
-                                className="px-3 py-1.5 text-sm bg-teal-800 text-white rounded-full font-medium hover:bg-teal-700"
+                                type="button"
+                                onClick={handleAddCategory}
+                                className="px-3 py-1.5 text-sm bg-teal-800 text-white rounded-full font-medium hover:bg-teal-700 border-0 cursor-pointer"
                             >
                                 Save
                             </button>
                             <button
                                 type="button"
                                 onClick={() => { setIsAddingCategory(false); setNewCategoryName(''); }}
-                                className="px-3 py-1.5 text-sm bg-slate-200 text-slate-700 rounded-full font-medium hover:bg-slate-300"
+                                className="px-3 py-1.5 text-sm bg-slate-200 text-slate-700 rounded-full font-medium hover:bg-slate-300 cursor-pointer border-0"
                             >
                                 Cancel
                             </button>
-                        </form>
+                        </div>
                     ) : (
                         <button
                             type="button"
                             onClick={() => setIsAddingCategory(true)}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-dashed border-teal-700 text-teal-800 hover:bg-teal-50 font-medium text-sm transition-colors cursor-pointer"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-dashed border-teal-700 text-teal-800 hover:bg-teal-50 font-medium text-sm transition-colors cursor-pointer bg-white"
                         >
                             <span>+</span>
                             <span>Add Category</span>
@@ -276,14 +273,14 @@ function DashboardPage() {
                     <button
                         type="button"
                         onClick={() => setIsAddingExpense(!isAddingExpense)}
-                        className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800 transition-colors"
+                        className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800 transition-colors cursor-pointer border-0"
                     >
                         {isAddingExpense ? 'Close Form' : '+ Add Expense'}
                     </button>
                 </div>
 
                 {isAddingExpense && (
-                    <form onSubmit={handleAddExpense} className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap gap-4 items-end">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap gap-4 items-end">
                         <div className="flex-1 min-w-[150px]">
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Amount</label>
                             <input
@@ -293,7 +290,7 @@ function DashboardPage() {
                                 placeholder="0.00"
                                 value={expenseAmount}
                                 onChange={(e) => setExpenseAmount(e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none"
+                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none bg-white"
                             />
                         </div>
 
@@ -304,7 +301,7 @@ function DashboardPage() {
                                 required
                                 value={expenseDate}
                                 onChange={(e) => setExpenseDate(e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none"
+                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none bg-white"
                             />
                         </div>
 
@@ -330,12 +327,13 @@ function DashboardPage() {
                         </div>
 
                         <button
-                            type="submit"
-                            className="px-5 py-2 bg-teal-800 text-white font-medium text-sm rounded-md hover:bg-teal-700 transition-colors"
+                            type="button"
+                            onClick={handleAddExpense}
+                            className="px-5 py-2 bg-teal-800 text-white font-medium text-sm rounded-md hover:bg-teal-700 transition-colors border-0 cursor-pointer"
                         >
                             Save Expense
                         </button>
-                    </form>
+                    </div>
                 )}
 
                 <div className="space-y-2">
@@ -371,7 +369,7 @@ function DashboardPage() {
                                         <button
                                             type="button"
                                             onClick={() => handleDeleteExpense(exp.id)}
-                                            className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                            className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors border-0 bg-transparent cursor-pointer"
                                             title="Delete expense"
                                         >
                                             ✕

@@ -1,12 +1,15 @@
-import {useState, useEffect} from "react";
-import {useSearchParams} from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import loginBg from "../assets/login-bg.jpg";
-import {startLogin} from '../services/authService';
-import {showErrorToast} from '../services/errorToastStore';
+import { startLogin } from '../services/authService';
+import { showErrorToast } from '../services/errorToastStore';
 
 function LoginPage() {
     const [formData, setFormData] = useState({username: '', password: ''});
     const [searchParams, setSearchParams] = useSearchParams();
+
+    const [isLoading, setIsLoading] = useState(false);
+    const isSubmittingRef = useRef(false); // Synchronous lock for native form
 
     useEffect(() => {
         if (!sessionStorage.getItem('pkce_code_verifier')) {
@@ -15,8 +18,6 @@ function LoginPage() {
     }, []);
 
     // Spring Security redirects here with ?error after a failed native form login.
-    // There's no JSON body on this redirect, so we can't get the exact backend
-    // message — just show a generic invalid-credentials toast.
     useEffect(() => {
         if (searchParams.get('error') !== null) {
             showErrorToast({
@@ -35,13 +36,17 @@ function LoginPage() {
     };
 
     const handleSubmit = (e) => {
-        // Intentionally NOT calling e.preventDefault() here — this form does a
-        // real native POST to /login (Spring's session-based OAuth login),
-        // not a JS/axios call. The browser handles the submit + redirect itself.
-        console.log("Submitting login form");
+        if (isSubmittingRef.current) {
+            e.preventDefault(); // Blocks rapid duplicate double-clicks
+            return;
+        }
+
+        isSubmittingRef.current = true;
+        setIsLoading(true);
+        // Allows the initial native POST to /login to proceed normally
     };
 
-    return (/* Outer Screen Wrapper */
+    return (
         <div
             className="h-screen bg-cover bg-center flex items-center justify-center"
             style={{backgroundImage: `url('${loginBg}')`}}
@@ -93,9 +98,12 @@ function LoginPage() {
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            className="mt-2 w-full py-2.5 bg-teal-800 hover:bg-teal-700 text-white font-semibold rounded-md shadow-md transition-colors cursor-pointer"
+                            disabled={isLoading}
+                            className={`mt-2 w-full py-2.5 bg-teal-800 hover:bg-teal-700 text-white font-semibold rounded-md shadow-md transition-colors ${
+                                isLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                            }`}
                         >
-                            Sign In
+                            {isLoading ? 'Signing In...' : 'Sign In'}
                         </button>
                     </form>
                 </main>
@@ -111,7 +119,8 @@ function LoginPage() {
                 </footer>
 
             </div>
-        </div>);
+        </div>
+    );
 }
 
 export default LoginPage;

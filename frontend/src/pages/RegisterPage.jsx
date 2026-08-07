@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import { useState, useRef } from 'react';
 import loginBg from "../assets/login-bg.jpg";
 import api from '../services/api';
 
@@ -7,6 +7,8 @@ function RegisterPage() {
         email: '',
         password: ''
     });
+    const [isLoading, setIsLoading] = useState(false);
+    const isSubmittingRef = useRef(false); // Synchronous lock
 
     const handleChange = (e) => {
         setFormData({...formData, [e.target.name]: e.target.value});
@@ -14,6 +16,10 @@ function RegisterPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault(); // Prevents standard page reload
+        if (isSubmittingRef.current) return; // Block duplicate submissions instantly
+
+        isSubmittingRef.current = true;
+        setIsLoading(true);
 
         try {
             await api.post("/register", formData);
@@ -21,6 +27,9 @@ function RegisterPage() {
             // Add redirect logic here if needed
         } catch (error) {
             console.error("Registration failed:", error.response?.data || error.message);
+        } finally {
+            isSubmittingRef.current = false;
+            setIsLoading(false);
         }
     };
 
@@ -73,9 +82,12 @@ function RegisterPage() {
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            className="mt-2 w-full py-2.5 bg-teal-800 hover:bg-teal-700 text-white font-semibold rounded-md shadow-md transition-colors cursor-pointer"
+                            disabled={isLoading}
+                            className={`mt-2 w-full py-2.5 bg-teal-800 hover:bg-teal-700 text-white font-semibold rounded-md shadow-md transition-colors ${
+                                isLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                            }`}
                         >
-                            Sign Up
+                            {isLoading ? 'Signing Up...' : 'Sign Up'}
                         </button>
                     </form>
                 </main>
