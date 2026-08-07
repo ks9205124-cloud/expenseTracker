@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-A full-stack expense tracking app built to learn React, featuring hand-rolled JWT authentication, completed OAuth integration. Currently under active construction on the frontend.
-=======
 # Full-Stack Expense Tracker
 
 A full-stack, secure expense management application built with React, Spring Boot, and OAuth2 with PKCE authentication.
@@ -44,4 +41,3 @@ A full-stack, secure expense management application built with React, Spring Boo
    ```bash
    git clone [https://github.com/ks9205124-cloud/expenseTracker.git](https://github.com/ks9205124-cloud/expenseTracker.git)
    cd expenseTracker
->>>>>>> 2385bb5 (Update: readme and gitignore)
