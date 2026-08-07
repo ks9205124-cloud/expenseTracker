@@ -36,7 +36,7 @@ function LoginPage() {
                 <main className="w-full">
                     <form
                         method="POST"
-                        action="http://localhost:8080/login"
+                        action="/login"
                         className="flex flex-col gap-4"
                     >
 
@@ -67,7 +67,6 @@ function LoginPage() {
                         </div>
 
                         {/* Submit Button */}
-                        {/* Remove onSubmit from here */}
                         <button
                             type="submit"
                             className="mt-2 w-full py-2.5 bg-teal-800 hover:bg-teal-700 text-white font-semibold rounded-md shadow-md transition-colors cursor-pointer"

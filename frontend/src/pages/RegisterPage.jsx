@@ -15,7 +15,7 @@ function RegisterPage() {
         e.preventDefault(); // Prevents standard page reload
 
         try {
-            const response = await fetch("http://localhost:8080/register", {
+            const response = await fetch("/register", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

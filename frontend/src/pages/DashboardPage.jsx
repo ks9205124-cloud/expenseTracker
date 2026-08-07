@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function DashboardPage() {
     // --- Category States ---
@@ -54,9 +55,8 @@ function DashboardPage() {
         sessionStorage.clear();
         localStorage.clear();
 
-        // 2. Direct browser navigation forces the browser to attach the
-        // cross-origin JSESSIONID cookie so Spring Security can destroy the session.
-        window.location.href = 'http://localhost:8080/logout';
+        // 2. Direct browser navigation using relative path (works on localhost & Render)
+        window.location.href = '/logout';
     };
 
     // -------------------------------------------------------------
@@ -64,7 +64,7 @@ function DashboardPage() {
     // -------------------------------------------------------------
     const fetchCategories = async () => {
         try {
-            const res = await fetch("http://localhost:8080/api/categories", { headers: authHeaders });
+            const res = await fetch("/api/categories", { headers: authHeaders });
             if (res.ok) {
                 const data = await res.json();
                 setCategories(data);
@@ -81,7 +81,7 @@ function DashboardPage() {
         if (!newCategoryName.trim()) return;
 
         try {
-            const res = await fetch("http://localhost:8080/api/categories", {
+            const res = await fetch("/api/categories", {
                 method: "POST",
                 headers: authHeaders,
                 body: JSON.stringify({ categoryName: newCategoryName })
@@ -100,7 +100,7 @@ function DashboardPage() {
     const handleDeleteCategory = async (id, e) => {
         e.stopPropagation();
         try {
-            const res = await fetch(`http://localhost:8080/api/categories/${id}`, {
+            const res = await fetch(`/api/categories/${id}`, {
                 method: "DELETE",
                 headers: authHeaders
             });
@@ -120,7 +120,7 @@ function DashboardPage() {
     // -------------------------------------------------------------
     const fetchExpenses = async () => {
         try {
-            const res = await fetch("http://localhost:8080/api/expenses", { headers: authHeaders });
+            const res = await fetch("/api/expenses", { headers: authHeaders });
             if (res.ok) {
                 const data = await res.json();
                 setExpenses(data);
@@ -137,7 +137,7 @@ function DashboardPage() {
         if (!expenseAmount || !expenseDate || !expenseCategoryId) return;
 
         try {
-            const res = await fetch("http://localhost:8080/api/expenses", {
+            const res = await fetch("/api/expenses", {
                 method: "POST",
                 headers: authHeaders,
                 body: JSON.stringify({
@@ -160,7 +160,7 @@ function DashboardPage() {
 
     const handleDeleteExpense = async (id) => {
         try {
-            const res = await fetch(`http://localhost:8080/api/expenses/${id}`, {
+            const res = await fetch(`/api/expenses/${id}`, {
                 method: "DELETE",
                 headers: authHeaders
             });
