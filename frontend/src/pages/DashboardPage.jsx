@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 function DashboardPage() {
     // --- Category States ---
@@ -27,12 +28,9 @@ function DashboardPage() {
     const getUsernameFromToken = () => {
         if (!token) return 'User';
         try {
-            // Decode the Base64 payload of the JWT (part 2 of the token)
             const payloadBase64 = token.split('.')[1];
             const decodedJson = atob(payloadBase64);
             const decodedPayload = JSON.parse(decodedJson);
-
-            // Extract subject/username or email claim from token
             return decodedPayload.sub || decodedPayload.username || decodedPayload.email || 'User';
         } catch (err) {
             console.error("Failed to decode token payload:", err);
@@ -42,8 +40,9 @@ function DashboardPage() {
 
     const username = getUsernameFromToken();
 
+    // NOTE: api.js already sets Content-Type: application/json via axios defaults for JSON bodies.
+    // Only the Authorization header needs to be passed per-request here.
     const authHeaders = {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
     };
 
@@ -51,11 +50,8 @@ function DashboardPage() {
     // AUTH / LOGOUT
     // -------------------------------------------------------------
     const handleLogout = () => {
-        // 1. Clear ALL client-side tokens and cached states
         sessionStorage.clear();
         localStorage.clear();
-
-        // 2. Direct browser navigation using relative path (works on localhost & Render)
         window.location.href = '/logout';
     };
 
@@ -64,11 +60,8 @@ function DashboardPage() {
     // -------------------------------------------------------------
     const fetchCategories = async () => {
         try {
-            const res = await fetch("/api/categories", { headers: authHeaders });
-            if (res.ok) {
-                const data = await res.json();
-                setCategories(data);
-            }
+            const res = await api.get("/api/categories", { headers: authHeaders });
+            setCategories(res.data);
         } catch (err) {
             console.error("Error fetching categories:", err);
         } finally {
@@ -81,17 +74,10 @@ function DashboardPage() {
         if (!newCategoryName.trim()) return;
 
         try {
-            const res = await fetch("/api/categories", {
-                method: "POST",
-                headers: authHeaders,
-                body: JSON.stringify({ categoryName: newCategoryName })
-            });
-
-            if (res.ok) {
-                setNewCategoryName('');
-                setIsAddingCategory(false);
-                fetchCategories();
-            }
+            await api.post("/api/categories", { categoryName: newCategoryName }, { headers: authHeaders });
+            setNewCategoryName('');
+            setIsAddingCategory(false);
+            fetchCategories();
         } catch (err) {
             console.error("Error creating category:", err);
         }
@@ -100,16 +86,10 @@ function DashboardPage() {
     const handleDeleteCategory = async (id, e) => {
         e.stopPropagation();
         try {
-            const res = await fetch(`/api/categories/${id}`, {
-                method: "DELETE",
-                headers: authHeaders
-            });
-
-            if (res.ok) {
-                fetchCategories();
-                fetchExpenses();
-                if (selectedCategoryId === id) setSelectedCategoryId(null);
-            }
+            await api.delete(`/api/categories/${id}`, { headers: authHeaders });
+            fetchCategories();
+            fetchExpenses();
+            if (selectedCategoryId === id) setSelectedCategoryId(null);
         } catch (err) {
             console.error("Error deleting category:", err);
         }
@@ -120,11 +100,8 @@ function DashboardPage() {
     // -------------------------------------------------------------
     const fetchExpenses = async () => {
         try {
-            const res = await fetch("/api/expenses", { headers: authHeaders });
-            if (res.ok) {
-                const data = await res.json();
-                setExpenses(data);
-            }
+            const res = await api.get("/api/expenses", { headers: authHeaders });
+            setExpenses(res.data);
         } catch (err) {
             console.error("Error fetching expenses:", err);
         } finally {
@@ -137,22 +114,16 @@ function DashboardPage() {
         if (!expenseAmount || !expenseDate || !expenseCategoryId) return;
 
         try {
-            const res = await fetch("/api/expenses", {
-                method: "POST",
-                headers: authHeaders,
-                body: JSON.stringify({
-                    amount: parseFloat(expenseAmount),
-                    date: expenseDate,
-                    categoryId: Number(expenseCategoryId)
-                })
-            });
+            await api.post("/api/expenses", {
+                amount: parseFloat(expenseAmount),
+                date: expenseDate,
+                categoryId: Number(expenseCategoryId)
+            }, { headers: authHeaders });
 
-            if (res.ok) {
-                setExpenseAmount('');
-                setExpenseCategoryId('');
-                setIsAddingExpense(false);
-                fetchExpenses();
-            }
+            setExpenseAmount('');
+            setExpenseCategoryId('');
+            setIsAddingExpense(false);
+            fetchExpenses();
         } catch (err) {
             console.error("Error adding expense:", err);
         }
@@ -160,14 +131,8 @@ function DashboardPage() {
 
     const handleDeleteExpense = async (id) => {
         try {
-            const res = await fetch(`/api/expenses/${id}`, {
-                method: "DELETE",
-                headers: authHeaders
-            });
-
-            if (res.ok) {
-                fetchExpenses();
-            }
+            await api.delete(`/api/expenses/${id}`, { headers: authHeaders });
+            fetchExpenses();
         } catch (err) {
             console.error("Error deleting expense:", err);
         }
@@ -178,21 +143,17 @@ function DashboardPage() {
         fetchExpenses();
     }, []);
 
-    // Filter displayed expenses by selected category pill (if active)
     const filteredExpenses = selectedCategoryId
         ? expenses.filter(exp => (exp.category?.id || exp.categoryId) === selectedCategoryId)
         : expenses;
 
-    // Calculate overall total spent
     const totalSpent = filteredExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
 
     return (
         <div className="min-h-screen bg-slate-50 p-8 text-zinc-900 max-w-6xl mx-auto space-y-6">
 
-            {/* Page Header */}
             <header className="flex justify-between items-center">
                 <div>
-                    {/* Display user's username/email extracted from JWT token */}
                     <h1 className="text-3xl font-bold capitalize">{username}</h1>
                     <p className="text-sm text-slate-500">Track and manage your expenses effortlessly</p>
                 </div>
@@ -263,7 +224,6 @@ function DashboardPage() {
                         })
                     )}
 
-                    {/* Add Category Trigger */}
                     {isAddingCategory ? (
                         <form onSubmit={handleAddCategory} className="flex items-center gap-2">
                             <input
@@ -322,7 +282,6 @@ function DashboardPage() {
                     </button>
                 </div>
 
-                {/* Add Expense Form Box */}
                 {isAddingExpense && (
                     <form onSubmit={handleAddExpense} className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap gap-4 items-end">
                         <div className="flex-1 min-w-[150px]">
@@ -379,7 +338,6 @@ function DashboardPage() {
                     </form>
                 )}
 
-                {/* Expenses List Rows */}
                 <div className="space-y-2">
                     {expensesLoading ? (
                         <p className="text-sm text-slate-500 py-4">Loading expenses...</p>
@@ -396,7 +354,6 @@ function DashboardPage() {
                                     key={exp.id}
                                     className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl hover:border-slate-300 hover:shadow-sm transition-all"
                                 >
-                                    {/* Left Side: Category Name & Date */}
                                     <div className="flex items-center gap-4">
                                         <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full border border-slate-200">
                                             {categoryName}
@@ -406,7 +363,6 @@ function DashboardPage() {
                                         </span>
                                     </div>
 
-                                    {/* Right Side: Amount & Delete Button */}
                                     <div className="flex items-center gap-4">
                                         <span className="text-base font-semibold text-slate-900">
                                             ₹{parseFloat(exp.amount).toFixed(2)}

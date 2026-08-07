@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import loginBg from "../assets/login-bg.jpg";
+import api from '../services/api';
 
 function RegisterPage() {
     const [formData, setFormData] = useState({
@@ -15,23 +16,11 @@ function RegisterPage() {
         e.preventDefault(); // Prevents standard page reload
 
         try {
-            const response = await fetch("/register", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(formData), // Sends JSON matching your DTO
-            });
-
-            if (response.ok) {
-                console.log("Registration successful!");
-                // Add redirect logic here if needed
-            } else {
-                const errorData = await response.json();
-                console.error("Registration failed:", errorData);
-            }
+            await api.post("/register", formData);
+            console.log("Registration successful!");
+            // Add redirect logic here if needed
         } catch (error) {
-            console.error("Network error:", error);
+            console.error("Registration failed:", error.response?.data || error.message);
         }
     };
 

@@ -1,9 +1,12 @@
 import {useState, useEffect} from "react";
+import {useSearchParams} from "react-router-dom";
 import loginBg from "../assets/login-bg.jpg";
 import {startLogin} from '../services/authService';
+import {showErrorToast} from '../services/errorToastStore';
 
 function LoginPage() {
     const [formData, setFormData] = useState({username: '', password: ''});
+    const [searchParams, setSearchParams] = useSearchParams();
 
     useEffect(() => {
         if (!sessionStorage.getItem('pkce_code_verifier')) {
@@ -11,13 +14,33 @@ function LoginPage() {
         }
     }, []);
 
+    // Spring Security redirects here with ?error after a failed native form login.
+    // There's no JSON body on this redirect, so we can't get the exact backend
+    // message — just show a generic invalid-credentials toast.
+    useEffect(() => {
+        if (searchParams.get('error') !== null) {
+            showErrorToast({
+                message: 'Invalid email or password',
+                errorCode: 401,
+            });
+
+            // Strip ?error from the URL so refreshing the page doesn't re-trigger the toast
+            searchParams.delete('error');
+            setSearchParams(searchParams, {replace: true});
+        }
+    }, [searchParams, setSearchParams]);
+
     const handleChange = (e) => {
         setFormData({...formData, [e.target.name]: e.target.value});
     };
+
     const handleSubmit = (e) => {
-        e.preventDefault();
-        console.log("i tried to submit");
+        // Intentionally NOT calling e.preventDefault() here — this form does a
+        // real native POST to /login (Spring's session-based OAuth login),
+        // not a JS/axios call. The browser handles the submit + redirect itself.
+        console.log("Submitting login form");
     };
+
     return (/* Outer Screen Wrapper */
         <div
             className="h-screen bg-cover bg-center flex items-center justify-center"
@@ -37,6 +60,7 @@ function LoginPage() {
                     <form
                         method="POST"
                         action="/login"
+                        onSubmit={handleSubmit}
                         className="flex flex-col gap-4"
                     >
 
