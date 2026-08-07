@@ -53,8 +53,12 @@ public class WebAuthorizationConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Added "OPTIONS" for preflight
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "https://expense-tracker-backend-55wg.onrender.com"
+        ));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
@@ -74,15 +78,15 @@ public class WebAuthorizationConfig {
 
         http.exceptionHandling((e) ->
                 e.authenticationEntryPoint(
-                        new LoginUrlAuthenticationEntryPoint("http://localhost:5173/login")
+                        new LoginUrlAuthenticationEntryPoint("/login")
                 ));
 
         http.formLogin(form -> form
-                .loginPage("http://localhost:5173/login")
+                .loginPage("/login")
                 .loginProcessingUrl("/login")
         );
 
-        http.cors(cors -> cors.configurationSource(corsConfigurationSource()));  // ADD THIS
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
 
         return http.build();
     }
@@ -93,7 +97,7 @@ public class WebAuthorizationConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http.formLogin(form -> form
-                .loginPage("http://localhost:5173/login")
+                .loginPage("/login")
                 .loginProcessingUrl("/login")
         );
 
@@ -103,12 +107,11 @@ public class WebAuthorizationConfig {
                 .invalidateHttpSession(true)
                 .clearAuthentication(true)
                 .deleteCookies("JSESSIONID")
-                .logoutSuccessUrl("http://localhost:5173/login")
+                .logoutSuccessUrl("/login")
         );
 
         http.httpBasic(Customizer.withDefaults());
 
-        // Add this line so Spring validates incoming Bearer JWT tokens on /api/** endpoints
         http.oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(securityBeansConfig.jwtAuthenticationConverter()))
         );
@@ -132,10 +135,10 @@ public class WebAuthorizationConfig {
         );
 
         http.authorizeHttpRequests(c -> c
-                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll() // Permits browser OPTIONS requests
+                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/register").permitAll()
-                .requestMatchers("/login").permitAll()   // ADD THIS
+                .requestMatchers("/login").permitAll()
                 .requestMatchers("/logout").permitAll()
                 .requestMatchers("/admin").hasRole("ADMIN")
                 .requestMatchers("/user").hasAnyRole("USER","ADMIN")
@@ -154,18 +157,17 @@ public class WebAuthorizationConfig {
     ) {
         JdbcRegisteredClientRepository repository = new JdbcRegisteredClientRepository(jdbcTemplate);
 
-        // Initializer check: Save default client into MySQL if it isn't present yet
         if (repository.findByClientId("client") == null) {
             RegisteredClient registeredClient = RegisteredClient
                     .withId(UUID.randomUUID().toString())
                     .clientId("client")
-                    // Uses the injected secret from the method parameter
                     .clientSecret(passwordEncoder.encode(rawClientSecret))
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                     .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                     .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                     .redirectUri("http://localhost:5173/callback")
+                    .redirectUri("https://expense-tracker-backend-55wg.onrender.com/callback")
                     .scope(OidcScopes.OPENID)
                     .tokenSettings(TokenSettings.builder()
                             .authorizationCodeTimeToLive(Duration.ofMinutes(3))

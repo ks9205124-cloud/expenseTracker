@@ -29,10 +29,12 @@ export async function startLogin() {
         response_type: 'code',
         client_id: 'client',
         scope: 'openid',
-        redirect_uri: 'http://localhost:5173/callback',
+        // Automatically uses localhost:5173 locally and your Render URL in production
+        redirect_uri: `${window.location.origin}/callback`,
         code_challenge: challenge,
         code_challenge_method: 'S256'
     });
 
-    window.location.href = `http://localhost:8080/oauth2/authorize?${params.toString()}`;
+    // Relative path works seamlessly with Vite proxy locally and Spring Boot in production
+    window.location.href = `/oauth2/authorize?${params.toString()}`;
 }
