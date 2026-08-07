@@ -6,7 +6,6 @@ import com.shaurya.spring.expensetracker.model.User;
 import com.shaurya.spring.expensetracker.repository.CategoryRepository;
 import com.shaurya.spring.expensetracker.repository.ExpenseRepository;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -49,15 +48,19 @@ public class ExpenseService {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public List<Expense> getExpensesForCurrentUser() {
-        return expenseRepository.findByUser(userService.getCurrentUser());
+        User currentUser = userService.getCurrentUser();
+        // Uses the new query that fetches categories and filters explicitly by user ID
+        return expenseRepository.findByUserId(currentUser.getId());
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public Expense getExpenseById(Long expenseId) {
+        User currentUser = userService.getCurrentUser();
+
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new RuntimeException("Expense not found"));
 
-        if (!expense.getUser().getId().equals(userService.getCurrentUser().getId())) {
+        if (!expense.getUser().getId().equals(currentUser.getId()) && !userService.isCurrentUserAdmin()) {
             throw new AccessDeniedException("You do not own this expense");
         }
 
@@ -66,9 +69,12 @@ public class ExpenseService {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public void deleteExpense(Long expenseId) {
-        Expense expense = expenseRepository.findById(expenseId).orElseThrow(() -> new RuntimeException("Expense not found"));
+        User currentUser = userService.getCurrentUser();
 
-        if (!userService.getCurrentUser().getId().equals(expense.getUser().getId()) && !userService.isCurrentUserAdmin()) {
+        Expense expense = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new RuntimeException("Expense not found"));
+
+        if (!expense.getUser().getId().equals(currentUser.getId()) && !userService.isCurrentUserAdmin()) {
             throw new AccessDeniedException("You do not own this expense");
         }
 

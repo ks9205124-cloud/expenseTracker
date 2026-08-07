@@ -24,7 +24,7 @@ public class UserController {
     public String admin() {
         return "This is the admin page";
     }
-    @PostMapping("/createUser")
+    @PostMapping("/register")
     public User createUser(@Valid @RequestBody CreateUserRequest userRequest) {
         System.out.println(userRequest.email() + " " + userRequest.password());
         return userService.save(userRequest.email(), userRequest.password());

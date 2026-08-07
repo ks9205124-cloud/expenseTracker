@@ -26,8 +26,10 @@ import org.springframework.security.oauth2.server.authorization.settings.TokenSe
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.time.Duration;
@@ -41,20 +43,18 @@ public class WebAuthorizationConfig {
     private final CustomAuthenticationProvider customAuthenticationProvider;
     private final SecurityBeansConfig securityBeansConfig;
 
-
     @Autowired
     public WebAuthorizationConfig(CustomAuthenticationProvider customAuthenticationProvider,
-                                  SecurityBeansConfig securityBeansConfig, SecurityBeansConfig securityBeansConfig1
-    ) {
+                                  SecurityBeansConfig securityBeansConfig) {
         this.customAuthenticationProvider = customAuthenticationProvider;
-        this.securityBeansConfig = securityBeansConfig1;
+        this.securityBeansConfig = securityBeansConfig;
     }
 
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+        config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Added "OPTIONS" for preflight
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
@@ -74,11 +74,15 @@ public class WebAuthorizationConfig {
 
         http.exceptionHandling((e) ->
                 e.authenticationEntryPoint(
-                        new LoginUrlAuthenticationEntryPoint("/login")
+                        new LoginUrlAuthenticationEntryPoint("http://localhost:5173/login")
                 ));
 
-        // ENABLE form login in Order 1 so it handles human user login redirects cleanly
-        http.formLogin(Customizer.withDefaults());
+        http.formLogin(form -> form
+                .loginPage("http://localhost:5173/login")
+                .loginProcessingUrl("/login")
+        );
+
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()));  // ADD THIS
 
         return http.build();
     }
@@ -88,7 +92,20 @@ public class WebAuthorizationConfig {
     @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        http.formLogin(Customizer.withDefaults());
+        http.formLogin(form -> form
+                .loginPage("http://localhost:5173/login")
+                .loginProcessingUrl("/login")
+        );
+
+        // --- BACKEND LOGOUT CONFIGURATION ---
+        http.logout(logout -> logout
+                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+                .invalidateHttpSession(true)
+                .clearAuthentication(true)
+                .deleteCookies("JSESSIONID")
+                .logoutSuccessUrl("http://localhost:5173/login")
+        );
+
         http.httpBasic(Customizer.withDefaults());
 
         // Add this line so Spring validates incoming Bearer JWT tokens on /api/** endpoints
@@ -98,7 +115,9 @@ public class WebAuthorizationConfig {
 
         http.csrf(csrf -> csrf
                 .ignoringRequestMatchers("/api/**")
-                .ignoringRequestMatchers("/createUser")
+                .ignoringRequestMatchers("/register")
+                .ignoringRequestMatchers("/login")
+                .ignoringRequestMatchers("/logout")
         );
 
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
@@ -113,8 +132,11 @@ public class WebAuthorizationConfig {
         );
 
         http.authorizeHttpRequests(c -> c
+                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll() // Permits browser OPTIONS requests
                 .requestMatchers("/error").permitAll()
-                .requestMatchers("/createUser").permitAll()
+                .requestMatchers("/register").permitAll()
+                .requestMatchers("/login").permitAll()   // ADD THIS
+                .requestMatchers("/logout").permitAll()
                 .requestMatchers("/admin").hasRole("ADMIN")
                 .requestMatchers("/user").hasAnyRole("USER","ADMIN")
                 .requestMatchers("/api/**").hasAnyRole("USER","ADMIN")
@@ -143,7 +165,7 @@ public class WebAuthorizationConfig {
                     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                     .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                     .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                    .redirectUri("https://oauth.pstmn.io/v1/callback")
+                    .redirectUri("http://localhost:5173/callback")
                     .scope(OidcScopes.OPENID)
                     .tokenSettings(TokenSettings.builder()
                             .authorizationCodeTimeToLive(Duration.ofMinutes(3))

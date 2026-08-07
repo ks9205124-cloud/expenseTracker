@@ -3,8 +3,8 @@ package com.shaurya.spring.expensetracker.controller;
 import com.shaurya.spring.expensetracker.dto.CreateExpenseRequest;
 import com.shaurya.spring.expensetracker.model.Expense;
 import com.shaurya.spring.expensetracker.service.ExpenseService;
-import org.springframework.security.access.prepost.PostAuthorize;
-import org.springframework.security.access.prepost.PreAuthorize;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,8 +20,13 @@ public class ExpenseController {
     }
 
     @PostMapping
-    public Expense addExpense(@RequestBody CreateExpenseRequest expenseRequest) {
-        return expenseService.createExpense(expenseRequest.amount(), expenseRequest.date(), expenseRequest.categoryId());
+    @ResponseStatus(HttpStatus.CREATED)
+    public Expense addExpense(@Valid @RequestBody CreateExpenseRequest expenseRequest) {
+        return expenseService.createExpense(
+                expenseRequest.amount(),
+                expenseRequest.date(),
+                expenseRequest.categoryId()
+        );
     }
 
     @GetMapping
@@ -35,6 +40,7 @@ public class ExpenseController {
     }
 
     @DeleteMapping("/{expenseId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteExpenseById(@PathVariable Long expenseId) {
         expenseService.deleteExpense(expenseId);
     }

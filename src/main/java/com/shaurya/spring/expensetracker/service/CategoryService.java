@@ -1,14 +1,13 @@
 package com.shaurya.spring.expensetracker.service;
 
 import com.shaurya.spring.expensetracker.model.Category;
+import com.shaurya.spring.expensetracker.model.User;
 import com.shaurya.spring.expensetracker.repository.CategoryRepository;
-
 import com.shaurya.spring.expensetracker.repository.ExpenseRepository;
-import org.springframework.security.access.prepost.PostAuthorize;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
-import org.springframework.security.access.AccessDeniedException;
 import java.util.List;
 
 @Service
@@ -33,25 +32,24 @@ public class CategoryService {
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
-     public List<Category> getCategoriesForCurrentUser() {
-        return categoryRepository.findByUser(userService.getCurrentUser());
-     }
+    public List<Category> getCategoriesForCurrentUser() {
+        User currentUser = userService.getCurrentUser();
+        return categoryRepository.findByUserId(currentUser.getId());
+    }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
-    public void deleteCategory(Long categoryId)  {
-
+    public void deleteCategory(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
-
 
         if (!category.getUser().getId().equals(userService.getCurrentUser().getId()) && !userService.isCurrentUserAdmin()) {
             throw new AccessDeniedException("User not allowed to delete category");
         }
 
         if (expenseRepository.existsByCategory(category)) {
-            throw new AccessDeniedException("Cannot delete category as expense with this category exists");
+            throw new IllegalStateException("Cannot delete category as expenses with this category exist");
         }
 
         categoryRepository.delete(category);
-     }
+    }
 }
