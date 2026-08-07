@@ -10,8 +10,8 @@ RUN npm install
 COPY frontend/ .
 RUN npm run build
 
-# Stage 2: Build the Spring Boot Backend and embed the frontend
-FROM eclipse-temurin:17-jdk-alpine AS backend-build
+# Stage 2: Build the Spring Boot Backend and embed the frontend (Upgraded to Java 21)
+FROM eclipse-temurin:21-jdk-alpine AS backend-build
 WORKDIR /app
 
 # Copy the entire backend project
@@ -24,8 +24,8 @@ COPY --from=frontend-build /app/frontend/dist /app/src/main/resources/static
 RUN chmod +x mvnw
 RUN ./mvnw clean package -DskipTests
 
-# Stage 3: Run the final unified application
-FROM eclipse-temurin:17-jre-alpine
+# Stage 3: Run the final unified application (Upgraded to Java 21)
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Copy the built jar from the backend build stage
