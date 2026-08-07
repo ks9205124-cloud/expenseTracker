@@ -1,7 +1,6 @@
 package com.shaurya.spring.expensetracker;
 
 import com.shaurya.spring.expensetracker.security.AuthenticationLoggingFilter;
-import com.shaurya.spring.expensetracker.security.CoustomAuthenticationSuccessHandler;
 import com.shaurya.spring.expensetracker.security.CustomAuthenticationProvider;
 import com.shaurya.spring.expensetracker.security.RequestLoggingFilter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -136,6 +135,8 @@ public class WebAuthorizationConfig {
 
         http.authorizeHttpRequests(c -> c
                 .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
+                // Permit React SPA entry points and static files to prevent redirect loops
+                .requestMatchers("/", "/index.html", "/static/**", "/assets/**", "*.js", "*.css", "*.ico", "/favicon.ico").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/register").permitAll()
                 .requestMatchers("/login").permitAll()
