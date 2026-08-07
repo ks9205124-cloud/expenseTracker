@@ -34,3 +34,8 @@ build/
 
 # Ignore sensitive configuration files
 src/main/resources/application.properties
+
+### React ###
+node_modules/
+.DS_Store
+dist/
