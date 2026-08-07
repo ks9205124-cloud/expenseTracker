@@ -81,7 +81,7 @@ function LoginPage() {
                 <footer className="flex-1 flex items-center justify-center">
                     <p className="text-sm text-zinc-900">
                         Don't have an account?{" "}
-                        <a href="#" className="text-teal-900 hover:underline font-semibold">
+                        <a href="/register" className="text-teal-900 hover:underline font-semibold">
                             Register
                         </a>
                     </p>

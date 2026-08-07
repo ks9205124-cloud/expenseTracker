@@ -28,6 +28,7 @@ import org.springframework.security.web.authentication.LoginUrlAuthenticationEnt
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.time.Duration;
@@ -52,7 +53,7 @@ public class WebAuthorizationConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Added "OPTIONS" for preflight
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
@@ -103,7 +104,7 @@ public class WebAuthorizationConfig {
 
         http.csrf(csrf -> csrf
                 .ignoringRequestMatchers("/api/**")
-                .ignoringRequestMatchers("/createUser")
+                .ignoringRequestMatchers("/register")
                 .ignoringRequestMatchers("/login")
         );
 
@@ -119,8 +120,9 @@ public class WebAuthorizationConfig {
         );
 
         http.authorizeHttpRequests(c -> c
+                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll() // Permits browser OPTIONS requests
                 .requestMatchers("/error").permitAll()
-                .requestMatchers("/createUser").permitAll()
+                .requestMatchers("/register").permitAll()
                 .requestMatchers("/login").permitAll()   // ADD THIS
                 .requestMatchers("/admin").hasRole("ADMIN")
                 .requestMatchers("/user").hasAnyRole("USER","ADMIN")
