@@ -72,7 +72,7 @@ function DashboardPage() {
     };
 
     const handleAddCategory = async () => {
-        if (isSavingCategoryRef.current) return; // Immediate lock check
+        if (isSavingCategoryRef.current) return;
         if (!newCategoryName.trim()) return;
 
         isSavingCategoryRef.current = true;
@@ -109,7 +109,7 @@ function DashboardPage() {
     };
 
     const handleAddExpense = async () => {
-        if (isSavingExpenseRef.current) return; // Immediate lock check
+        if (isSavingExpenseRef.current) return;
         if (!expenseAmount || !expenseDate || !expenseCategoryId) return;
 
         isSavingExpenseRef.current = true;
@@ -145,6 +145,71 @@ function DashboardPage() {
 
     const totalSpent = filteredExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
 
+    // -------------------------------------------------------------
+    // DYNAMIC & CUSTOMIZED DOUGHNUT CHART CONFIGURATION
+    // -------------------------------------------------------------
+    const categoryTotals = categories.map(cat => {
+        const catId = cat.id || cat.categoryId;
+        const catName = cat.name || cat.categoryName;
+        const total = expenses
+            .filter(exp => (exp.category?.id || exp.categoryId) === catId)
+            .reduce((sum, exp) => sum + (exp.amount || 0), 0);
+        return { name: catName, total };
+    }).filter(item => item.total > 0);
+
+    // Custom color palette matching your uploaded image (Peach, Coral, Magenta, Purple)
+    const customColorPalette = [
+        '#FBC594', // Peach / Light Orange
+        '#FA6E65', // Coral / Salmon
+        '#D43879', // Magenta / Pink
+        '#7B38D8'  // Purple / Violet
+    ];
+
+    const chartConfig = {
+        type: 'doughnut',
+        data: {
+            labels: categoryTotals.map(item => item.name),
+            datasets: [{
+                data: categoryTotals.map(item => item.total),
+                backgroundColor: categoryTotals.map((_, index) => customColorPalette[index % customColorPalette.length]),
+                borderWidth: 3,
+                borderColor: '#ffffff',
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            cutout: '68%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 16,
+                        font: {
+                            size: 12,
+                            family: 'system-ui, sans-serif'
+                        }
+                    }
+                },
+                title: {
+                    display: false
+                },
+                // Forces the text inside slices to be bright white and bold for maximum visibility
+                datalabels: {
+                    color: '#ffffff',
+                    font: {
+                        weight: 'bold',
+                        size: 13
+                    }
+                }
+            }
+        }
+    };
+
+    const chartUrl = categoryTotals.length > 0
+        ? `https://quickchart.io/chart?w=400&h=400&c=${encodeURIComponent(JSON.stringify(chartConfig))}`
+        : null;
+
     return (
         <div className="min-h-screen bg-slate-50 p-8 text-zinc-900 max-w-6xl mx-auto space-y-6">
 
@@ -157,7 +222,7 @@ function DashboardPage() {
                     <span className="text-xs bg-slate-200 px-3 py-1.5 rounded-full text-slate-700 font-medium">
                         Categories: {categories.length}
                     </span>
-                    <span className="text-xs bg-teal-100 text-teal-800 px-3 py-1.5 rounded-full font-semibold">
+                    <span className="text-xs bg-rose-100 text-rose-800 px-3 py-1.5 rounded-full font-semibold">
                         Total Spent: ₹{totalSpent.toFixed(2)}
                     </span>
                     <button
@@ -177,7 +242,7 @@ function DashboardPage() {
                     {selectedCategoryId && (
                         <button
                             onClick={() => setSelectedCategoryId(null)}
-                            className="text-xs text-teal-700 hover:underline font-medium cursor-pointer"
+                            className="text-xs text-rose-600 hover:underline font-medium cursor-pointer"
                         >
                             Clear Filter
                         </button>
@@ -199,7 +264,7 @@ function DashboardPage() {
                                     onClick={() => setSelectedCategoryId(isSelected ? null : categoryId)}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all cursor-pointer ${
                                         isSelected
-                                            ? 'bg-teal-700 text-white border-teal-700 shadow-md scale-105'
+                                            ? 'bg-rose-600 text-white border-rose-600 shadow-md scale-105'
                                             : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
                                     }`}
                                 >
@@ -228,12 +293,12 @@ function DashboardPage() {
                                 placeholder="Category name..."
                                 value={newCategoryName}
                                 onChange={(e) => setNewCategoryName(e.target.value)}
-                                className="px-3 py-1.5 text-sm border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-700 bg-white"
+                                className="px-3 py-1.5 text-sm border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white"
                             />
                             <button
                                 type="button"
                                 onClick={handleAddCategory}
-                                className="px-3 py-1.5 text-sm bg-teal-800 text-white rounded-full font-medium hover:bg-teal-700 border-0 cursor-pointer"
+                                className="px-3 py-1.5 text-sm bg-rose-600 text-white rounded-full font-medium hover:bg-rose-700 border-0 cursor-pointer"
                             >
                                 Save
                             </button>
@@ -249,7 +314,7 @@ function DashboardPage() {
                         <button
                             type="button"
                             onClick={() => setIsAddingCategory(true)}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-dashed border-teal-700 text-teal-800 hover:bg-teal-50 font-medium text-sm transition-colors cursor-pointer bg-white"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-dashed border-rose-400 text-rose-600 hover:bg-rose-50 font-medium text-sm transition-colors cursor-pointer bg-white"
                         >
                             <span>+</span>
                             <span>Add Category</span>
@@ -264,7 +329,7 @@ function DashboardPage() {
                     <div>
                         <h2 className="text-xl font-semibold text-slate-800">Expenses</h2>
                         {selectedCategoryId && (
-                            <p className="text-xs text-teal-700 font-medium">
+                            <p className="text-xs text-rose-600 font-medium">
                                 Filtered by selected category
                             </p>
                         )}
@@ -273,7 +338,7 @@ function DashboardPage() {
                     <button
                         type="button"
                         onClick={() => setIsAddingExpense(!isAddingExpense)}
-                        className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800 transition-colors cursor-pointer border-0"
+                        className="px-4 py-2 bg-rose-600 text-white text-sm font-medium rounded-lg hover:bg-rose-700 transition-colors cursor-pointer border-0"
                     >
                         {isAddingExpense ? 'Close Form' : '+ Add Expense'}
                     </button>
@@ -290,7 +355,7 @@ function DashboardPage() {
                                 placeholder="0.00"
                                 value={expenseAmount}
                                 onChange={(e) => setExpenseAmount(e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none bg-white"
+                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white"
                             />
                         </div>
 
@@ -301,7 +366,7 @@ function DashboardPage() {
                                 required
                                 value={expenseDate}
                                 onChange={(e) => setExpenseDate(e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none bg-white"
+                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white"
                             />
                         </div>
 
@@ -311,7 +376,7 @@ function DashboardPage() {
                                 required
                                 value={expenseCategoryId}
                                 onChange={(e) => setExpenseCategoryId(e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none bg-white"
+                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white"
                             >
                                 <option value="">Select Category</option>
                                 {categories.map((cat) => {
@@ -329,7 +394,7 @@ function DashboardPage() {
                         <button
                             type="button"
                             onClick={handleAddExpense}
-                            className="px-5 py-2 bg-teal-800 text-white font-medium text-sm rounded-md hover:bg-teal-700 transition-colors border-0 cursor-pointer"
+                            className="px-5 py-2 bg-rose-600 text-white font-medium text-sm rounded-md hover:bg-rose-700 transition-colors border-0 cursor-pointer"
                         >
                             Save Expense
                         </button>
@@ -380,6 +445,29 @@ function DashboardPage() {
                         })
                     )}
                 </div>
+            </section>
+
+            {/* 3. CHART VISUALIZATION SECTION (BOTTOM) WITH CENTER TEXT OVERLAY */}
+            <section className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
+                <h2 className="text-xl font-semibold text-slate-800 mb-4 self-start">Visual Summary</h2>
+                {chartUrl ? (
+                    <div className="relative w-72 h-72 flex items-center justify-center my-2">
+                        <img
+                            src={chartUrl}
+                            alt="Expense Breakdown Doughnut Chart"
+                            className="w-full h-full object-contain"
+                        />
+                        {/* Center Text Overlay inside the Doughnut hole */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-6">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Spent</span>
+                            <span className="text-base font-extrabold text-slate-800">₹{totalSpent.toFixed(2)}</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-100 rounded-lg w-full">
+                        Not enough expense data to display chart.
+                    </div>
+                )}
             </section>
         </div>
     );
