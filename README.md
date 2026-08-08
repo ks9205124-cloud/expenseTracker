@@ -1,162 +1,193 @@
-#  Expense Tracker
+# Expense Tracker
 
-A full-stack expense management app built with **Spring Boot** and **React**, featuring a hand-rolled OAuth2 Authorization Server + Resource Server (not Auth0/Firebase) implementing the Authorization Code + PKCE flow end-to-end.
+A full-stack expense management application built with Spring Boot and React, featuring a hand-rolled OAuth2 Authorization Server and Resource Server implementing the Authorization Code with PKCE flow end-to-end, paired with automated keep-alive monitoring and containerized deployment.
 
-** Live App:** [expense-tracker-backend-55wg.onrender.com](https://expense-tracker-backend-55wg.onrender.com)
-*(Note: the URL says "backend" from an earlier deployment plan — it now serves both the frontend and API from a single Render deployment.)*
+**Live App:** [expense-tracker-backend-55wg.onrender.com](https://expense-tracker-backend-55wg.onrender.com)
+**Repository:** [github.com/ks9205124-cloud/expenseTracker](https://github.com/ks9205124-cloud/expenseTracker)
 
-** Repo:** [github.com/ks9205124-cloud/expenseTracker](https://github.com/ks9205124-cloud/expenseTracker)
+## Demonstration
 
----
+![Expense Tracker Demo](./assets/expenseTrackerGif.gif)
 
 ## Why This Project
 
-This was built as a dual-purpose project: to properly learn React (rather than stopping at tutorials) and to get hands-on with a real OAuth2 flow instead of outsourcing auth to a third-party provider. Most developers plug in Auth0 or Firebase and move on — this project forced an understanding of what's actually happening underneath: PKCE code exchange, JWT issuance, filter chains, and role-based access control, all implemented and debugged by hand.
+This project was built as a dual-purpose engineering challenge: to move beyond basic tutorials into full-scale React frontend development and to master identity and access management by building a custom OAuth2 Authorization Server rather than outsourcing authentication to third-party providers like Auth0 or Firebase.
 
-## Development Approach
-
-The application logic — backend architecture, Spring Security configuration, auth flow, database design, and business logic — was designed and written independently. AI assistance was used narrowly on the frontend, for things like Tailwind/flexbox layout suggestions, not for the core logic or security implementation.
-
----
-
-## Screenshots
-
-> _Add screenshots here, e.g.:_
-> `![Login](docs/screenshots/login.png)` · `![Dashboard](docs/screenshots/dashboard.png)`
-
-| Login | Dashboard |
-|---|---|
-| ![Login screenshot](docs/screenshots/login.png) | ![Dashboard screenshot](docs/screenshots/dashboard.png) |
-
----
+Implementing a custom authorization server forced a deep understanding of core security primitives, including PKCE code challenge generation, token exchange, custom security filter chains, CORS configurations, and role-based access control. Additionally, production deployment introduced real-world constraints such as handling Render cold starts via automated cron jobs, managing cross-origin cookie restrictions, and packaging both backend and frontend into a unified deployment artifact.
 
 ## Features
 
-- **Custom OAuth2 + PKCE Authentication** — self-hosted Spring Authorization Server (not a third-party provider), so the full token issuance/exchange flow is implemented and understood end-to-end, from PKCE code_verifier/challenge generation on the frontend to token exchange and JWT-based session handling on the backend.
-- **Role-Based & Method-Level Authorization** — endpoint access restricted via `hasRole`/`hasAuthority`, HTTP-method-specific request matchers, and a custom authentication success handler that routes users by role.
-- **User Registration & Login** — full registration flow (working end-to-end) with BCrypt password hashing and default categories auto-seeded for every new user.
-- **Category & Expense Management (CRUD)** — full create/read/update/delete for both categories and expenses, with category deletion blocked if expenses still reference it. Amounts are stored as `BigDecimal` for accuracy.
-- **Protected Routes** — React Router routes (e.g. `/dashboard`) that block unauthenticated access and clear invalid sessions client-side.
-- **Responsive UI** — built with Tailwind CSS.
+- **Custom OAuth2 + PKCE Authentication:** Self-hosted Spring Authorization Server managing the full token issuance and exchange cycle, from client registration to JWT-based session handling.
+- **Role-Based & Method-Level Authorization:** Endpoint access secured via granular request matchers, authority checks, and custom authentication success handlers.
+- **User Registration & Login:** Complete account creation workflow featuring BCrypt password hashing and automatic default category seeding for new users.
+- **Category & Expense Management (CRUD):** Comprehensive record management with strict relational checks (preventing category deletion if linked expenses exist) and precise monetary calculations using BigDecimal.
+- **Automated Keep-Alive Monitoring:** Configured with an external cron service via cron-job.org to ping a public health check endpoint (`/api/health`) every 10 minutes, preventing server spin-down on free-tier cloud hosting.
+- **Responsive User Interface:** Modern, clean interface designed with Tailwind CSS and React Router.
 
-### 🚧 Planned / In Progress
-- Category-wise expense breakdown via pie chart
-- Refresh tokens / persistent login (sessions currently end on browser close)
-- Proper CSRF token handling on `/login` (currently CSRF-exempted for this path)
+## Tech Stack & Infrastructure
 
-### Current Limitations (Honest Assessment)
-- **Sessions aren't persistent.** No refresh token flow yet, so closing the browser logs you out — a known gap, not an oversight.
-- **CSRF on `/login` is exempted, not solved.** Works correctly but isn't the final intended setup.
-- **No spending visualizations yet.** Data is tracked and calculable, but there's no chart/graph view in the UI — the pie chart is next.
+| Layer | Technology | Description |
+|---|---|---|
+| Frontend | React (Vite), Tailwind CSS, React Router v6 | Single-page application handling UI routing, components, and PKCE parameter generation. |
+| Backend | Java, Spring Boot, Spring Security | Core business logic, REST controllers, and decoupled Authorization/Resource Server filter chains. |
+| Database | MySQL | Relational data persistence for users, authorities, categories, and expenses. |
+| Containerization | Docker & Docker-Compose | Multi-stage build packaging backend and static frontend assets into a single reproducible image. |
+| Hosting & Cloud | Render | Production environment serving the unified application over HTTPS with managed public URLs. |
+| Monitoring | Cron-job.org | Automated background pings to the `/api/health` endpoint to maintain uptime on cloud infrastructure. |
 
----
+## Architecture & Auth Flow
 
-## Tech Stack
+The backend utilizes a decoupled, multi-tier security filter chain architecture separating the OAuth2 Authorization Server from the Resource Server.
 
-**Frontend:** React (Vite) · Tailwind CSS · React Router v6
+```
+Frontend (React + PKCE) 
+    │
+    ├─ 1. Generates code_verifier / code_challenge
+    ├─ 2. Redirects to Authorization Server (/oauth2/authorize)
+    └─ 3. Exchanges authorization code for tokens
+        │
+        ▼
+Spring Boot Backend (OAuth2 Authorization Server + Resource Server)
+    ├─ WebAuthorizationConfig.java (Resource Server filter chain & CORS)
+    ├─ AuthorizationServerConfig.java (OAuth2 client registration & tokens)
+    ├─ CustomAuthenticationProvider.java (DB-backed authentication)
+    └─ MySQL Database (Users, Authorities, Categories, Expenses)
+```
 
-**Backend:** Java · Spring Boot · Spring Security (custom OAuth2 Authorization Server + Resource Server) · Spring Data JPA / Hibernate
+## Project Structure
 
-**Database:** MySQL
-
-**Deployment:** Docker · Render
-
----
+```
+expenseTracker/
+├── src/main/java/com/shaurya/spring/expensetracker/
+│   ├── controller/
+│   │   ├── CategoryController.java
+│   │   ├── ExpenseController.java
+│   │   ├── HealthController.java
+│   │   ├── SpaController.java
+│   │   └── UserController.java
+│   ├── dto/
+│   │   ├── CreateCategoryRequest.java
+│   │   ├── CreateExpenseRequest.java
+│   │   └── CreateUserRequest.java
+│   ├── exception/
+│   │   ├── DuplicateResourceException.java
+│   │   ├── GlobalExceptionHandler.java
+│   │   └── ResourceNotFoundException.java
+│   ├── model/
+│   │   ├── Authority.java
+│   │   ├── Category.java
+│   │   ├── Expense.java
+│   │   └── User.java
+│   ├── repository/
+│   │   ├── CategoryRepository.java
+│   │   ├── ExpenseRepository.java
+│   │   ├── RsaKeyRepository.java
+│   │   └── UserRepository.java
+│   ├── security/
+│   │   ├── AuthenticationLoggingFilter.java
+│   │   ├── CustomAuthenticationSuccessHandler.java
+│   │   ├── CustomAuthenticationProvider.java
+│   │   ├── JpaUserDetailsService.java
+│   │   ├── RequestLoggingFilter.java
+│   │   └── SecurityUser.java
+│   ├── service/
+│   │   ├── CategoryService.java
+│   │   ├── ExpenseService.java
+│   │   └── UserService.java
+│   ├── AuthorizationServerConfig.java
+│   ├── ExpenseTrackerApplication.java
+│   ├── SecurityBeansConfig.java
+│   ├── UserManagementConfig.java
+│   └── WebAuthorizationConfig.java
+├── src/main/resources/
+│   ├── templates/
+│   └── application.properties
+├── src/test/
+├── frontend/
+│   ├── public/
+│   └── src/
+│       ├── assets/
+│       │   ├── hero.png
+│       │   ├── login-bg.jpg
+│       │   ├── react.svg
+│       │   └── vite.svg
+│       ├── components/
+│       │   ├── AsyncButton.jsx
+│       │   └── ErrorToastContainer.jsx
+│       ├── pages/
+│       │   ├── CallbackPage.jsx
+│       │   ├── DashboardPage.jsx
+│       │   ├── LoginPage.jsx
+│       │   └── RegisterPage.jsx
+│       ├── services/
+│       │   ├── api.js
+│       │   ├── authService.js
+│       │   └── errorToastStore.js
+│       ├── App.jsx
+│       ├── index.css
+│       ├── main.jsx
+│       └── ProtectedRoute.jsx
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── README.md
+├── Dockerfile
+├── HELP.md
+├── mvnw / mvnw.cmd
+├── pom.xml
+└── README.md
+```
 
 ## Getting Started
 
 ### Prerequisites
-- JDK 17+
+
+- JDK 17 or higher
 - Node.js (v18+)
 - Maven
-- MySQL (or run via the provided Docker setup)
+- MySQL Server (or Docker setup)
 
 ### Local Setup
 
+Clone the repository:
+
 ```bash
-# Clone the repo
 git clone https://github.com/ks9205124-cloud/expenseTracker.git
 cd expenseTracker
+```
 
-# Backend
+Run the backend:
+
+```bash
 ./mvnw spring-boot:run
+```
 
-# Frontend (in a separate terminal)
+Run the frontend (in a separate terminal):
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Or run everything together with Docker:
+Alternatively, run everything via Docker:
 
 ```bash
 docker-compose up --build
 ```
 
----
+## Current Limitations & Honest Assessment
 
-## Architecture Notes
+- **Session Persistence:** Sessions currently terminate upon closing the browser window. Implementing a refresh token flow is planned for a future update.
+- **CSRF Handling:** CSRF protection is explicitly bypassed for specific auth paths (`/login`, `/register`, `/api/**`) to streamline token and session exchange for this SPA architecture, which can be hardened further in production.
+- **Visualizations:** The UI tracks and lists expenses accurately, but graphical chart breakdowns (such as category pie charts) are scheduled for the next development iteration.
 
-The auth layer is intentionally hand-built rather than delegated to a third-party provider (Auth0/Firebase) or a simple hand-rolled JWT filter — it implements a full Spring Authorization Server + Resource Server setup (per *Spring Security in Action*), including:
+## Lessons Learned
 
-- Custom `AuthenticationProvider` and `SecurityFilterChain` configuration
-- DB-backed `UserDetailsService` with a `User` JPA entity and role-based `Authority` mapping
-- Separate, correctly-configured filter chains (and CORS setup) for the Authorization Server and Resource Server
-- PKCE `code_verifier` / `code_challenge` generation on the client, with token exchange handled in the OAuth callback
-
-This was a deliberate choice to be able to explain the OAuth2 flow in depth rather than treat auth as a black box.
-
----
-
-## Project Structure
-
-> Reconstructed from what's been built so far — please check this against the actual repo and correct anything that's drifted, especially exact package names.
-
-```
-expenseTracker/
-├── src/main/java/.../expensetracker/
-│   ├── config/
-│   │   ├── SecurityConfig.java            (Resource Server filter chain)
-│   │   └── AuthorizationServerConfig.java (OAuth2 Authorization Server, PKCE, registered client)
-│   ├── security/
-│   │   ├── SecurityUser.java              (implements UserDetails)
-│   │   ├── JpaUserDetailsService.java
-│   │   ├── CustomAuthenticationSuccessHandler.java
-│   │   ├── RequestLoggingFilter.java
-│   │   └── AuthenticationLoggingFilter.java
-│   ├── model/
-│   │   ├── User.java
-│   │   ├── Authority.java
-│   │   ├── Category.java
-│   │   └── Expense.java
-│   ├── repository/
-│   │   ├── UserRepository.java
-│   │   ├── CategoryRepository.java
-│   │   └── ExpenseRepository.java
-│   ├── service/
-│   │   ├── UserService.java
-│   │   ├── CategoryService.java
-│   │   └── ExpenseService.java
-│   └── controller/
-│       ├── CategoryController.java
-│       └── ExpenseController.java
-├── frontend/
-│   └── src/
-│       ├── pages/
-│       │   ├── LoginPage.jsx
-│       │   ├── CallbackPage.jsx
-│       │   ├── DashboardPage.jsx
-│       │   └── RegisterPage.jsx
-│       └── services/
-│           └── authService.js             (PKCE code_verifier/challenge, token exchange)
-├── Dockerfile
-├── docker-compose.yml
-├── pom.xml
-└── README.md
-```
-
----
+- **Production Security Constraints:** Local development environments are forgiving with cookies and CORS. Transitioning to production on HTTPS required strict configuration of cookie flags (`SameSite=None`, `Secure`) and explicit CORS mapping.
+- **Infrastructure Management:** Cloud free tiers introduce spin-down latency. Integrating an external health-check monitor via cron-job.org solved availability drops without incurring server costs.
+- **Filter Chain Isolation:** Separating the OAuth2 Authorization Server filter chain from the standard application API filter chain requires precise order annotations and URL matching rules to prevent redirect loops.
 
 ## License
 
-MIT (or update as preferred)
+Distributed under the MIT License. See `LICENSE` for more information.
