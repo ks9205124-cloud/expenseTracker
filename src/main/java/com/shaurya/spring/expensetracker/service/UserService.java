@@ -1,5 +1,6 @@
 package com.shaurya.spring.expensetracker.service;
 
+import com.shaurya.spring.expensetracker.exception.DuplicateResourceException;
 import com.shaurya.spring.expensetracker.model.Authority;
 import com.shaurya.spring.expensetracker.model.User;
 import com.shaurya.spring.expensetracker.repository.UserRepository;
@@ -32,7 +33,11 @@ public class UserService {
     }
 
     public User save(String username, String password) {
-        //TODO: handel if userName already exists
+        // Check if the user/email already exists before saving
+        if (userRepository.existsByEmail(username)) {
+            throw new DuplicateResourceException("A user with email '" + username + "' already exists.");
+        }
+
         User user = new User();
         user.setPassword(passwordEncoder.encode(password));
         user.setEmail(username);

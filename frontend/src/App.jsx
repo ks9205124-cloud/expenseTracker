@@ -5,10 +5,12 @@ import LoginPage from './pages/LoginPage';
 import CallbackPage from './pages/CallbackPage';
 import DashboardPage from './pages/DashboardPage';
 import RegisterPage from "./pages/RegisterPage.jsx";
+import ErrorToastContainer from './components/ErrorToastContainer';
 
 function App() {
     return (
         <Router>
+            <ErrorToastContainer />
             <Routes>
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />

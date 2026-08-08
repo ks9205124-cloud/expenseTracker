@@ -1,5 +1,6 @@
 package com.shaurya.spring.expensetracker.service;
 
+import com.shaurya.spring.expensetracker.exception.ResourceNotFoundException;
 import com.shaurya.spring.expensetracker.model.Category;
 import com.shaurya.spring.expensetracker.model.User;
 import com.shaurya.spring.expensetracker.repository.CategoryRepository;
@@ -39,8 +40,9 @@ public class CategoryService {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public void deleteCategory(Long categoryId) {
+        // Replaced generic RuntimeException with your custom ResourceNotFoundException
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
 
         if (!category.getUser().getId().equals(userService.getCurrentUser().getId()) && !userService.isCurrentUserAdmin()) {
             throw new AccessDeniedException("User not allowed to delete category");
