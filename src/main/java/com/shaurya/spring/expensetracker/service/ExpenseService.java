@@ -1,5 +1,6 @@
 package com.shaurya.spring.expensetracker.service;
 
+import com.shaurya.spring.expensetracker.exception.ResourceNotFoundException;
 import com.shaurya.spring.expensetracker.model.Category;
 import com.shaurya.spring.expensetracker.model.Expense;
 import com.shaurya.spring.expensetracker.model.User;
@@ -30,8 +31,9 @@ public class ExpenseService {
     public Expense createExpense(BigDecimal amount, LocalDate date, Long categoryId) {
         User currentUser = userService.getCurrentUser();
 
+        // Replaced generic RuntimeException with custom ResourceNotFoundException
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
 
         if (!category.getUser().getId().equals(currentUser.getId()) && !userService.isCurrentUserAdmin()) {
             throw new AccessDeniedException("You do not own this category");
@@ -49,7 +51,6 @@ public class ExpenseService {
     @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public List<Expense> getExpensesForCurrentUser() {
         User currentUser = userService.getCurrentUser();
-        // Uses the new query that fetches categories and filters explicitly by user ID
         return expenseRepository.findByUserId(currentUser.getId());
     }
 
@@ -57,8 +58,9 @@ public class ExpenseService {
     public Expense getExpenseById(Long expenseId) {
         User currentUser = userService.getCurrentUser();
 
+        // Replaced generic RuntimeException with custom ResourceNotFoundException
         Expense expense = expenseRepository.findById(expenseId)
-                .orElseThrow(() -> new RuntimeException("Expense not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + expenseId));
 
         if (!expense.getUser().getId().equals(currentUser.getId()) && !userService.isCurrentUserAdmin()) {
             throw new AccessDeniedException("You do not own this expense");
@@ -71,8 +73,9 @@ public class ExpenseService {
     public void deleteExpense(Long expenseId) {
         User currentUser = userService.getCurrentUser();
 
+        // Replaced generic RuntimeException with custom ResourceNotFoundException
         Expense expense = expenseRepository.findById(expenseId)
-                .orElseThrow(() -> new RuntimeException("Expense not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + expenseId));
 
         if (!expense.getUser().getId().equals(currentUser.getId()) && !userService.isCurrentUserAdmin()) {
             throw new AccessDeniedException("You do not own this expense");

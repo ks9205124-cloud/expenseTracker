@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 function DashboardPage() {
     // --- Category States ---
@@ -19,6 +20,10 @@ function DashboardPage() {
     const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
     const [expenseCategoryId, setExpenseCategoryId] = useState('');
 
+    // --- DIRECT SUBMISSION LOCKS (Prevents double clicks instantly) ---
+    const isSavingExpenseRef = useRef(false);
+    const isSavingCategoryRef = useRef(false);
+
     const token = sessionStorage.getItem('access_token');
 
     // -------------------------------------------------------------
@@ -27,12 +32,9 @@ function DashboardPage() {
     const getUsernameFromToken = () => {
         if (!token) return 'User';
         try {
-            // Decode the Base64 payload of the JWT (part 2 of the token)
             const payloadBase64 = token.split('.')[1];
             const decodedJson = atob(payloadBase64);
             const decodedPayload = JSON.parse(decodedJson);
-
-            // Extract subject/username or email claim from token
             return decodedPayload.sub || decodedPayload.username || decodedPayload.email || 'User';
         } catch (err) {
             console.error("Failed to decode token payload:", err);
@@ -43,7 +45,6 @@ function DashboardPage() {
     const username = getUsernameFromToken();
 
     const authHeaders = {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
     };
 
@@ -51,11 +52,8 @@ function DashboardPage() {
     // AUTH / LOGOUT
     // -------------------------------------------------------------
     const handleLogout = () => {
-        // 1. Clear ALL client-side tokens and cached states
         sessionStorage.clear();
         localStorage.clear();
-
-        // 2. Direct browser navigation using relative path (works on localhost & Render)
         window.location.href = '/logout';
     };
 
@@ -64,11 +62,8 @@ function DashboardPage() {
     // -------------------------------------------------------------
     const fetchCategories = async () => {
         try {
-            const res = await fetch("/api/categories", { headers: authHeaders });
-            if (res.ok) {
-                const data = await res.json();
-                setCategories(data);
-            }
+            const res = await api.get("/api/categories", { headers: authHeaders });
+            setCategories(res.data);
         } catch (err) {
             console.error("Error fetching categories:", err);
         } finally {
@@ -76,43 +71,27 @@ function DashboardPage() {
         }
     };
 
-    const handleAddCategory = async (e) => {
-        e.preventDefault();
+    const handleAddCategory = async () => {
+        if (isSavingCategoryRef.current) return;
         if (!newCategoryName.trim()) return;
 
+        isSavingCategoryRef.current = true;
         try {
-            const res = await fetch("/api/categories", {
-                method: "POST",
-                headers: authHeaders,
-                body: JSON.stringify({ categoryName: newCategoryName })
-            });
-
-            if (res.ok) {
-                setNewCategoryName('');
-                setIsAddingCategory(false);
-                fetchCategories();
-            }
-        } catch (err) {
-            console.error("Error creating category:", err);
+            await api.post("/api/categories", { categoryName: newCategoryName }, { headers: authHeaders });
+            setNewCategoryName('');
+            setIsAddingCategory(false);
+            fetchCategories();
+        } finally {
+            isSavingCategoryRef.current = false;
         }
     };
 
     const handleDeleteCategory = async (id, e) => {
         e.stopPropagation();
-        try {
-            const res = await fetch(`/api/categories/${id}`, {
-                method: "DELETE",
-                headers: authHeaders
-            });
-
-            if (res.ok) {
-                fetchCategories();
-                fetchExpenses();
-                if (selectedCategoryId === id) setSelectedCategoryId(null);
-            }
-        } catch (err) {
-            console.error("Error deleting category:", err);
-        }
+        await api.delete(`/api/categories/${id}`, { headers: authHeaders });
+        fetchCategories();
+        fetchExpenses();
+        if (selectedCategoryId === id) setSelectedCategoryId(null);
     };
 
     // -------------------------------------------------------------
@@ -120,11 +99,8 @@ function DashboardPage() {
     // -------------------------------------------------------------
     const fetchExpenses = async () => {
         try {
-            const res = await fetch("/api/expenses", { headers: authHeaders });
-            if (res.ok) {
-                const data = await res.json();
-                setExpenses(data);
-            }
+            const res = await api.get("/api/expenses", { headers: authHeaders });
+            setExpenses(res.data);
         } catch (err) {
             console.error("Error fetching expenses:", err);
         } finally {
@@ -132,45 +108,30 @@ function DashboardPage() {
         }
     };
 
-    const handleAddExpense = async (e) => {
-        e.preventDefault();
+    const handleAddExpense = async () => {
+        if (isSavingExpenseRef.current) return;
         if (!expenseAmount || !expenseDate || !expenseCategoryId) return;
 
+        isSavingExpenseRef.current = true;
         try {
-            const res = await fetch("/api/expenses", {
-                method: "POST",
-                headers: authHeaders,
-                body: JSON.stringify({
-                    amount: parseFloat(expenseAmount),
-                    date: expenseDate,
-                    categoryId: Number(expenseCategoryId)
-                })
-            });
+            await api.post("/api/expenses", {
+                amount: parseFloat(expenseAmount),
+                date: expenseDate,
+                categoryId: Number(expenseCategoryId)
+            }, { headers: authHeaders });
 
-            if (res.ok) {
-                setExpenseAmount('');
-                setExpenseCategoryId('');
-                setIsAddingExpense(false);
-                fetchExpenses();
-            }
-        } catch (err) {
-            console.error("Error adding expense:", err);
+            setExpenseAmount('');
+            setExpenseCategoryId('');
+            setIsAddingExpense(false);
+            fetchExpenses();
+        } finally {
+            isSavingExpenseRef.current = false;
         }
     };
 
     const handleDeleteExpense = async (id) => {
-        try {
-            const res = await fetch(`/api/expenses/${id}`, {
-                method: "DELETE",
-                headers: authHeaders
-            });
-
-            if (res.ok) {
-                fetchExpenses();
-            }
-        } catch (err) {
-            console.error("Error deleting expense:", err);
-        }
+        await api.delete(`/api/expenses/${id}`, { headers: authHeaders });
+        fetchExpenses();
     };
 
     useEffect(() => {
@@ -178,21 +139,82 @@ function DashboardPage() {
         fetchExpenses();
     }, []);
 
-    // Filter displayed expenses by selected category pill (if active)
     const filteredExpenses = selectedCategoryId
         ? expenses.filter(exp => (exp.category?.id || exp.categoryId) === selectedCategoryId)
         : expenses;
 
-    // Calculate overall total spent
     const totalSpent = filteredExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+
+    // -------------------------------------------------------------
+    // DYNAMIC & CUSTOMIZED DOUGHNUT CHART CONFIGURATION
+    // -------------------------------------------------------------
+    const categoryTotals = categories.map(cat => {
+        const catId = cat.id || cat.categoryId;
+        const catName = cat.name || cat.categoryName;
+        const total = expenses
+            .filter(exp => (exp.category?.id || exp.categoryId) === catId)
+            .reduce((sum, exp) => sum + (exp.amount || 0), 0);
+        return { name: catName, total };
+    }).filter(item => item.total > 0);
+
+    // Custom color palette matching your uploaded image (Peach, Coral, Magenta, Purple)
+    const customColorPalette = [
+        '#FBC594', // Peach / Light Orange
+        '#FA6E65', // Coral / Salmon
+        '#D43879', // Magenta / Pink
+        '#7B38D8'  // Purple / Violet
+    ];
+
+    const chartConfig = {
+        type: 'doughnut',
+        data: {
+            labels: categoryTotals.map(item => item.name),
+            datasets: [{
+                data: categoryTotals.map(item => item.total),
+                backgroundColor: categoryTotals.map((_, index) => customColorPalette[index % customColorPalette.length]),
+                borderWidth: 3,
+                borderColor: '#ffffff',
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            cutout: '68%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 16,
+                        font: {
+                            size: 12,
+                            family: 'system-ui, sans-serif'
+                        }
+                    }
+                },
+                title: {
+                    display: false
+                },
+                // Forces the text inside slices to be bright white and bold for maximum visibility
+                datalabels: {
+                    color: '#ffffff',
+                    font: {
+                        weight: 'bold',
+                        size: 13
+                    }
+                }
+            }
+        }
+    };
+
+    const chartUrl = categoryTotals.length > 0
+        ? `https://quickchart.io/chart?w=400&h=400&c=${encodeURIComponent(JSON.stringify(chartConfig))}`
+        : null;
 
     return (
         <div className="min-h-screen bg-slate-50 p-8 text-zinc-900 max-w-6xl mx-auto space-y-6">
 
-            {/* Page Header */}
             <header className="flex justify-between items-center">
                 <div>
-                    {/* Display user's username/email extracted from JWT token */}
                     <h1 className="text-3xl font-bold capitalize">{username}</h1>
                     <p className="text-sm text-slate-500">Track and manage your expenses effortlessly</p>
                 </div>
@@ -200,7 +222,7 @@ function DashboardPage() {
                     <span className="text-xs bg-slate-200 px-3 py-1.5 rounded-full text-slate-700 font-medium">
                         Categories: {categories.length}
                     </span>
-                    <span className="text-xs bg-teal-100 text-teal-800 px-3 py-1.5 rounded-full font-semibold">
+                    <span className="text-xs bg-rose-100 text-rose-800 px-3 py-1.5 rounded-full font-semibold">
                         Total Spent: ₹{totalSpent.toFixed(2)}
                     </span>
                     <button
@@ -220,7 +242,7 @@ function DashboardPage() {
                     {selectedCategoryId && (
                         <button
                             onClick={() => setSelectedCategoryId(null)}
-                            className="text-xs text-teal-700 hover:underline font-medium"
+                            className="text-xs text-rose-600 hover:underline font-medium cursor-pointer"
                         >
                             Clear Filter
                         </button>
@@ -242,7 +264,7 @@ function DashboardPage() {
                                     onClick={() => setSelectedCategoryId(isSelected ? null : categoryId)}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all cursor-pointer ${
                                         isSelected
-                                            ? 'bg-teal-700 text-white border-teal-700 shadow-md scale-105'
+                                            ? 'bg-rose-600 text-white border-rose-600 shadow-md scale-105'
                                             : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
                                     }`}
                                 >
@@ -251,7 +273,7 @@ function DashboardPage() {
                                     <button
                                         type="button"
                                         onClick={(e) => handleDeleteCategory(categoryId, e)}
-                                        className={`ml-1 text-xs rounded-full p-1 hover:bg-red-500 hover:text-white transition-colors ${
+                                        className={`ml-1 text-xs rounded-full p-1 hover:bg-red-500 hover:text-white transition-colors border-0 bg-transparent cursor-pointer ${
                                             isSelected ? 'text-slate-200' : 'text-slate-500'
                                         }`}
                                         title="Delete category"
@@ -263,36 +285,36 @@ function DashboardPage() {
                         })
                     )}
 
-                    {/* Add Category Trigger */}
                     {isAddingCategory ? (
-                        <form onSubmit={handleAddCategory} className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <input
                                 type="text"
                                 autoFocus
                                 placeholder="Category name..."
                                 value={newCategoryName}
                                 onChange={(e) => setNewCategoryName(e.target.value)}
-                                className="px-3 py-1.5 text-sm border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-700"
+                                className="px-3 py-1.5 text-sm border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white"
                             />
                             <button
-                                type="submit"
-                                className="px-3 py-1.5 text-sm bg-teal-800 text-white rounded-full font-medium hover:bg-teal-700"
+                                type="button"
+                                onClick={handleAddCategory}
+                                className="px-3 py-1.5 text-sm bg-rose-600 text-white rounded-full font-medium hover:bg-rose-700 border-0 cursor-pointer"
                             >
                                 Save
                             </button>
                             <button
                                 type="button"
                                 onClick={() => { setIsAddingCategory(false); setNewCategoryName(''); }}
-                                className="px-3 py-1.5 text-sm bg-slate-200 text-slate-700 rounded-full font-medium hover:bg-slate-300"
+                                className="px-3 py-1.5 text-sm bg-slate-200 text-slate-700 rounded-full font-medium hover:bg-slate-300 cursor-pointer border-0"
                             >
                                 Cancel
                             </button>
-                        </form>
+                        </div>
                     ) : (
                         <button
                             type="button"
                             onClick={() => setIsAddingCategory(true)}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-dashed border-teal-700 text-teal-800 hover:bg-teal-50 font-medium text-sm transition-colors cursor-pointer"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-dashed border-rose-400 text-rose-600 hover:bg-rose-50 font-medium text-sm transition-colors cursor-pointer bg-white"
                         >
                             <span>+</span>
                             <span>Add Category</span>
@@ -307,7 +329,7 @@ function DashboardPage() {
                     <div>
                         <h2 className="text-xl font-semibold text-slate-800">Expenses</h2>
                         {selectedCategoryId && (
-                            <p className="text-xs text-teal-700 font-medium">
+                            <p className="text-xs text-rose-600 font-medium">
                                 Filtered by selected category
                             </p>
                         )}
@@ -316,15 +338,14 @@ function DashboardPage() {
                     <button
                         type="button"
                         onClick={() => setIsAddingExpense(!isAddingExpense)}
-                        className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800 transition-colors"
+                        className="px-4 py-2 bg-rose-600 text-white text-sm font-medium rounded-lg hover:bg-rose-700 transition-colors cursor-pointer border-0"
                     >
                         {isAddingExpense ? 'Close Form' : '+ Add Expense'}
                     </button>
                 </div>
 
-                {/* Add Expense Form Box */}
                 {isAddingExpense && (
-                    <form onSubmit={handleAddExpense} className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap gap-4 items-end">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap gap-4 items-end">
                         <div className="flex-1 min-w-[150px]">
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Amount</label>
                             <input
@@ -334,7 +355,7 @@ function DashboardPage() {
                                 placeholder="0.00"
                                 value={expenseAmount}
                                 onChange={(e) => setExpenseAmount(e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none"
+                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white"
                             />
                         </div>
 
@@ -345,7 +366,7 @@ function DashboardPage() {
                                 required
                                 value={expenseDate}
                                 onChange={(e) => setExpenseDate(e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none"
+                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white"
                             />
                         </div>
 
@@ -355,7 +376,7 @@ function DashboardPage() {
                                 required
                                 value={expenseCategoryId}
                                 onChange={(e) => setExpenseCategoryId(e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-700 focus:outline-none bg-white"
+                                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white"
                             >
                                 <option value="">Select Category</option>
                                 {categories.map((cat) => {
@@ -371,15 +392,15 @@ function DashboardPage() {
                         </div>
 
                         <button
-                            type="submit"
-                            className="px-5 py-2 bg-teal-800 text-white font-medium text-sm rounded-md hover:bg-teal-700 transition-colors"
+                            type="button"
+                            onClick={handleAddExpense}
+                            className="px-5 py-2 bg-rose-600 text-white font-medium text-sm rounded-md hover:bg-rose-700 transition-colors border-0 cursor-pointer"
                         >
                             Save Expense
                         </button>
-                    </form>
+                    </div>
                 )}
 
-                {/* Expenses List Rows */}
                 <div className="space-y-2">
                     {expensesLoading ? (
                         <p className="text-sm text-slate-500 py-4">Loading expenses...</p>
@@ -396,7 +417,6 @@ function DashboardPage() {
                                     key={exp.id}
                                     className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl hover:border-slate-300 hover:shadow-sm transition-all"
                                 >
-                                    {/* Left Side: Category Name & Date */}
                                     <div className="flex items-center gap-4">
                                         <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full border border-slate-200">
                                             {categoryName}
@@ -406,7 +426,6 @@ function DashboardPage() {
                                         </span>
                                     </div>
 
-                                    {/* Right Side: Amount & Delete Button */}
                                     <div className="flex items-center gap-4">
                                         <span className="text-base font-semibold text-slate-900">
                                             ₹{parseFloat(exp.amount).toFixed(2)}
@@ -415,7 +434,7 @@ function DashboardPage() {
                                         <button
                                             type="button"
                                             onClick={() => handleDeleteExpense(exp.id)}
-                                            className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                            className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors border-0 bg-transparent cursor-pointer"
                                             title="Delete expense"
                                         >
                                             ✕
@@ -426,6 +445,29 @@ function DashboardPage() {
                         })
                     )}
                 </div>
+            </section>
+
+            {/* 3. CHART VISUALIZATION SECTION (BOTTOM) WITH CENTER TEXT OVERLAY */}
+            <section className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
+                <h2 className="text-xl font-semibold text-slate-800 mb-4 self-start">Visual Summary</h2>
+                {chartUrl ? (
+                    <div className="relative w-72 h-72 flex items-center justify-center my-2">
+                        <img
+                            src={chartUrl}
+                            alt="Expense Breakdown Doughnut Chart"
+                            className="w-full h-full object-contain"
+                        />
+                        {/* Center Text Overlay inside the Doughnut hole */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-6">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Spent</span>
+                            <span className="text-base font-extrabold text-slate-800">₹{totalSpent.toFixed(2)}</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-100 rounded-lg w-full">
+                        Not enough expense data to display chart.
+                    </div>
+                )}
             </section>
         </div>
     );
