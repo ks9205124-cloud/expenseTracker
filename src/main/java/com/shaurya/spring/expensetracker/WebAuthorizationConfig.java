@@ -141,6 +141,7 @@ public class WebAuthorizationConfig {
                 .requestMatchers("/register").permitAll()
                 .requestMatchers("/login").permitAll()
                 .requestMatchers("/logout").permitAll()
+                .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/admin").hasRole("ADMIN")
                 .requestMatchers("/user").hasAnyRole("USER","ADMIN")
                 .requestMatchers("/api/**").hasAnyRole("USER","ADMIN")
